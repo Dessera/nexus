@@ -9,8 +9,8 @@ namespace fp {
  *
  */
 enum class Policy : uint8_t {
-  Pure,   // Disallow (maybe) mutable operaions.
-  Impure, // Allow all c++ operations.
+    Pure,   // Disallow (maybe) mutable operaions.
+    Impure, // Allow all c++ operations.
 };
 
 } // namespace fp
