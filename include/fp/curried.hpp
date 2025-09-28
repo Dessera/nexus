@@ -17,20 +17,33 @@ namespace fp {
  * @tparam FixedArgs Saved arguments type.
  */
 template <Policy P, typename F, typename... FixedArgs> class Curried {
-public:
-  template <typename T>
-  using ArgsWrapper = detail::CurriedHelper<P>::template ArgsWrapper<T>;
+private:
+  /**
+   * @brief Private utils for Curried.
+   *
+   */
+  using Helper = detail::CurriedHelper<P>;
 
+  /**
+   * @brief Redeclaration for Helper::ArgsTuple, only for convenience.
+   *
+   * @tparam Args Tuple element types.
+   */
+  template <typename... Args>
+  using ArgsTuple = Helper::template ArgsTuple<Args...>;
+
+public:
+  /**
+   * @brief Fixed function type (remove reference and others by std::decay).
+   *
+   */
   using FixedFunc = std::decay_t<F>;
 
-  template <typename... Args>
-  using ArgsTuple = std::tuple<ArgsWrapper<Args>...>;
-
+  /**
+   * @brief Fixed argument types (apply std::decay in pure policy).
+   *
+   */
   using FixedArgsTuple = ArgsTuple<FixedArgs...>;
-
-  template <typename InvokeF, typename... Args>
-  constexpr static bool IsInvokableV =
-      std::is_invocable_v<InvokeF, ArgsWrapper<Args>...>;
 
 private:
   FixedFunc _func;
@@ -81,7 +94,7 @@ public:
    */
   template <typename... Args>
   constexpr auto operator()(Args &&...args) const -> decltype(auto)
-    requires(IsInvokableV<F, FixedArgs..., Args...>)
+    requires(Helper::template IsInvokableV<F, FixedArgs..., Args...>)
   {
     return std::apply(
         _func,
@@ -95,7 +108,7 @@ public:
    */
   template <typename... Args>
   constexpr auto operator()(Args &&...args) const -> decltype(auto)
-    requires(!IsInvokableV<F, FixedArgs..., Args...>)
+    requires(!Helper::template IsInvokableV<F, FixedArgs..., Args...>)
   {
     return Curried<P, F, FixedArgs..., Args...>(
         _func,
