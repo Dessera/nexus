@@ -1,0 +1,15 @@
+CompileFlags:
+  CompilationDatabase: builddir
+Diagnostics:
+  ClangTidy:
+    Add: [
+      readability-*,
+      cppcoreguidelines-*,
+      bugprone-*,
+      modernize-*,
+      performance-*,
+      misc-*
+    ]
+    Remove: []
+InlayHints:
+  BlockEnd: true
