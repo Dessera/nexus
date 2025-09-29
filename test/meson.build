@@ -15,3 +15,13 @@ test_curried = executable(
 )
 
 test('test_curried', test_curried)
+
+test_lazy_src = files('test_lazy.cpp')
+test_lazy = executable(
+    'test_lazy',
+    test_lazy_src,
+    dependencies: test_deps,
+    cpp_args: test_args,
+)
+
+test('test_lazy', test_lazy)
