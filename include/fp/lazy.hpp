@@ -1,5 +1,6 @@
 #pragma once
 
+#include <concepts>
 #include <memory>
 #include <mutex>
 #include <type_traits>
@@ -96,6 +97,13 @@ template <typename F> constexpr auto lazy_eval(F &&func) -> decltype(auto) {
 }
 
 /**
+ * @brief Shared lazy result type.
+ *
+ * @tparam T Result type.
+ */
+template <typename T> using LazyResultRc = std::shared_ptr<LazyResult<T>>;
+
+/**
  * @brief Construct a new shared lazy evaluator.
  *
  * @tparam F Evaluator function type.
@@ -105,5 +113,14 @@ template <typename F> constexpr auto lazy_eval(F &&func) -> decltype(auto) {
 template <typename F> constexpr auto lazy_eval_rc(F &&func) -> decltype(auto) {
     return std::make_shared<LazyEval<F>>(std::forward<F>(func));
 }
+
+/**
+ * @brief Concept to check if T is derived from LazyResult<R>.
+ *
+ * @tparam T Target type.
+ * @tparam R Return type.
+ */
+template <typename T, typename R>
+concept ILazyResult = std::derived_from<T, LazyResult<R>>;
 
 } // namespace fp
