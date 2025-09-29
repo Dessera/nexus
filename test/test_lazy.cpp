@@ -1,6 +1,7 @@
 #include <fp/lazy.hpp>
 
 #include <cassert>
+#include <memory>
 
 auto main() -> int {
     auto sum = fp::lazy_eval([]() { return 1 + 2; });
