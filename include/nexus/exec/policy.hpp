@@ -5,13 +5,12 @@
 namespace nexus::exec {
 
 /**
- * @brief Task pop policies.
+ * @brief Task queue policies.
  *
  */
 enum class TaskPolicy : uint8_t {
     FIFO, // First input => First output
     LIFO, // Last input => First output
-    // RDFO, // Random input => First output
 };
 
 } // namespace nexus::exec
