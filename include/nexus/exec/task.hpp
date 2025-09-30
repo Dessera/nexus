@@ -1,5 +1,6 @@
 #pragma once
 
+#include <any>
 #include <exception>
 #include <functional>
 #include <future>
@@ -14,10 +15,10 @@ namespace nexus::exec {
  *
  * @tparam R Return type of task.
  */
-template <typename R> class Task {
+template <typename R = std::any> class Task {
   public:
-    using Function = std::function<void()>;
     using Result = std::decay_t<R>;
+    using Function = std::function<void(std::promise<Result> &)>;
 
   private:
     Function _func;
@@ -44,14 +45,18 @@ template <typename R> class Task {
      * @brief Task function call wrapper.
      *
      */
-    auto operator()() -> void { _func(); }
+    auto operator()() -> void {
+        // Pass promise here to avoid invalid `this` pointer caused by
+        // `std::move`.
+        _func(_res);
+    }
 
     /**
      * @brief Get task future.
      *
      * @return std::future<Result> Task result future.
      */
-    auto get_future() -> std::future<Result> { return _res.get_future(); }
+    auto get_future() { return _res.get_future(); }
 
   private:
     /**
@@ -74,17 +79,17 @@ template <typename R> class Task {
 
         auto args_tuple =
             std::tuple<std::decay_t<Args>...>(std::forward<Args>(args)...);
-        return [this, func = std::move(func),
-                args_tuple = std::move(args_tuple)]() {
+        return [func = std::move(func),
+                args_tuple = std::move(args_tuple)](std::promise<Result> &res) {
             try {
                 if constexpr (std::is_same_v<InvokeResult, void>) {
                     std::apply(func, args_tuple);
-                    _res.set_value();
+                    res.set_value();
                 } else {
-                    _res.set_value(std::apply(func, args_tuple));
+                    res.set_value(std::apply(func, args_tuple));
                 }
             } catch (...) {
-                _res.set_exception(std::current_exception());
+                res.set_exception(std::current_exception());
             }
         };
     }

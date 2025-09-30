@@ -7,3 +7,13 @@ test_task = executable(
 )
 
 test('test_task', test_task)
+
+test_queue_src = files('test_queue.cpp')
+test_queue = executable(
+    'test_queue',
+    test_queue_src,
+    dependencies: test_deps,
+    cpp_args: test_args,
+)
+
+test('test_queue', test_queue)
