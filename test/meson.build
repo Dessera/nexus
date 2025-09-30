@@ -25,3 +25,5 @@ test_lazy = executable(
 )
 
 test('test_lazy', test_lazy)
+
+subdir('exec')
