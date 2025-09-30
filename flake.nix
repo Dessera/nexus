@@ -41,6 +41,8 @@
                     nixfmt-rfc-style
                     mesonlsp
                     doxygen
+
+                    gtest
                   ])
                   ++ [
                     clang-tools

@@ -5,6 +5,8 @@ project(
     default_options: ['warning_level=3', 'cpp_std=gnu++20'],
 )
 
+gtest_dep = dependency('gtest_main', required: false)
+
 lib_deps = []
 lib_args = [
     '-DBUILDING_NEXUS',
@@ -33,7 +35,11 @@ nexus_dep = declare_dependency(
     dependencies: lib_deps,
 )
 
-subdir('test')
+if gtest_dep.found()
+    subdir('test')
+else
+    message('gtest not found, tests will not be built')
+endif
 
 pkg_mod = import('pkgconfig')
 

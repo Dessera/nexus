@@ -1,4 +1,4 @@
-test_deps = [nexus_dep]
+test_deps = [nexus_dep, gtest_dep]
 test_args = [
     '-Wall',
     '-Wextra',
@@ -6,24 +6,18 @@ test_args = [
     '-Werror',
 ]
 
-test_curried_src = files('test_curried.cpp')
-test_curried = executable(
-    'test_curried',
-    test_curried_src,
-    dependencies: test_deps,
-    cpp_args: test_args,
+test_src = files(
+    'test_curried.cpp',
+    'test_lazy.cpp',
 )
-
-test('test_curried', test_curried)
-
-test_lazy_src = files('test_lazy.cpp')
-test_lazy = executable(
-    'test_lazy',
-    test_lazy_src,
-    dependencies: test_deps,
-    cpp_args: test_args,
-)
-
-test('test_lazy', test_lazy)
 
 subdir('exec')
+
+test_nexus = executable(
+    'test_nexus',
+    test_src,
+    dependencies: test_deps,
+    cpp_args: test_args,
+)
+
+test('test_nexus', test_nexus)

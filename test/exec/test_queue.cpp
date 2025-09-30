@@ -2,11 +2,13 @@
 #include "nexus/exec/queue.hpp"
 #include "nexus/exec/task.hpp"
 
-#include <cassert>
+#include <gtest/gtest.h>
 
 namespace {
 
 using nexus::exec::Task;
+using nexus::exec::TaskPolicy;
+using nexus::exec::TaskQueue;
 
 template <typename T> auto unwrap_task(Task<T> &task) -> T {
     task();
@@ -15,12 +17,7 @@ template <typename T> auto unwrap_task(Task<T> &task) -> T {
     return future.get();
 }
 
-} // namespace
-
-auto main() -> int {
-    using nexus::exec::TaskPolicy;
-    using nexus::exec::TaskQueue;
-
+TEST(TaskQueue, FIFO) {
     auto fifo = TaskQueue<int>();
 
     fifo.emplace([]() { return 0; });
@@ -31,21 +28,25 @@ auto main() -> int {
     auto task2 = fifo.pop();
     auto task3 = fifo.pop();
 
-    assert(unwrap_task(task1) == 0);
-    assert(unwrap_task(task2) == 1);
-    assert(unwrap_task(task3) == 2);
+    EXPECT_EQ(unwrap_task(task1), 0);
+    EXPECT_EQ(unwrap_task(task2), 1);
+    EXPECT_EQ(unwrap_task(task3), 2);
+}
 
+TEST(TaskQueue, LIFO) {
     auto lifo = TaskQueue<int, TaskPolicy::LIFO>();
 
     lifo.emplace([]() { return 0; });
     lifo.emplace([]() { return 1; });
     lifo.emplace([]() { return 2; });
 
-    task1 = lifo.pop();
-    task2 = lifo.pop();
-    task3 = lifo.pop();
+    auto task1 = lifo.pop();
+    auto task2 = lifo.pop();
+    auto task3 = lifo.pop();
 
-    assert(unwrap_task(task1) == 2);
-    assert(unwrap_task(task2) == 1);
-    assert(unwrap_task(task3) == 0);
+    EXPECT_EQ(unwrap_task(task1), 2);
+    EXPECT_EQ(unwrap_task(task2), 1);
+    EXPECT_EQ(unwrap_task(task3), 0);
 }
+
+} // namespace
