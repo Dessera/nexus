@@ -8,7 +8,7 @@
   pkg-config,
 }:
 stdenv.mkDerivation {
-  pname = "fp";
+  pname = "nexus";
   version = "0.1.0";
   src = lib.cleanSource ./.;
 

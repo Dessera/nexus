@@ -6,7 +6,7 @@
 #include <type_traits>
 #include <utility>
 
-namespace fp {
+namespace nexus {
 
 /**
  * @brief Trait for return type based lazy evaluator.
@@ -123,4 +123,4 @@ template <typename F> constexpr auto lazy_eval_rc(F &&func) -> decltype(auto) {
 template <typename T, typename R>
 concept ILazyResult = std::derived_from<T, LazyResult<R>>;
 
-} // namespace fp
+} // namespace nexus

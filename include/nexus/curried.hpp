@@ -4,7 +4,7 @@
 #include <type_traits>
 #include <utility>
 
-namespace fp {
+namespace nexus {
 
 /**
  * @brief Curried function wrapper.
@@ -125,4 +125,4 @@ constexpr auto make_curried(F &&func, Args &&...args) -> decltype(auto) {
                                std::forward<Args>(args)...};
 }
 
-} // namespace fp
+} // namespace nexus

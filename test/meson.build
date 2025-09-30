@@ -1,4 +1,4 @@
-test_deps = [fp_dep]
+test_deps = [nexus_dep]
 test_args = [
     '-Wall',
     '-Wextra',

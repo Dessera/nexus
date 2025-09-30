@@ -1,5 +1,5 @@
 {
-  description = "FP-like utilities.";
+  description = "Basic components for C++20";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs?ref=nixpkgs-unstable";

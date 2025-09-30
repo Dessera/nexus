@@ -1,3 +1,3 @@
 lib_src = files(
-  'fp.cpp',
+    'nexus.cpp',
 )
