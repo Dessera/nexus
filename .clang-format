@@ -9,3 +9,4 @@ AlignConsecutiveShortCaseStatements:
   Enabled: true
 AllowShortCaseExpressionOnASingleLine: true
 AllowShortCaseLabelsOnASingleLine: true
+IndentPPDirectives: BeforeHash
