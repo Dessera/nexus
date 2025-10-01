@@ -9,8 +9,8 @@ namespace nexus::exec {
  *
  */
 enum class TaskPolicy : uint8_t {
-    FIFO, // First input => First output
-    LIFO, // Last input => First output
+    FIFO,
+    LIFO,
 };
 
 } // namespace nexus::exec

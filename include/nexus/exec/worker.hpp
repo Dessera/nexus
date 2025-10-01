@@ -1,8 +1,9 @@
 #pragma once
 
-#include "nexus/exec/policy.hpp"
+#include "nexus/common.hpp"
 #include "nexus/exec/queue.hpp"
 
+#include <atomic>
 #include <chrono>
 #include <condition_variable>
 #include <cstdint>
@@ -16,16 +17,20 @@ namespace nexus::exec {
 /**
  * @brief Worker thread.
  *
- * @tparam R Task return type.
- * @tparam P Queue policy.
  */
-template <typename R, TaskPolicy P> class Worker {
+class NEXUS_EXPORT Worker {
   public:
     /**
      * @brief Queue pointer type for sharing ownership.
      *
      */
-    using QueuePtr = std::shared_ptr<TaskQueue<R, P>>;
+    using QueuePtr = std::shared_ptr<TaskQueue>;
+
+    /**
+     * @brief Jthread pointer type for lazy initialization.
+     *
+     */
+    using ThreadPtr = std::unique_ptr<std::jthread>;
 
     /**
      * @brief Worker status.
@@ -43,36 +48,33 @@ template <typename R, TaskPolicy P> class Worker {
      *
      */
     struct Inner {
-        Status status{Status::Create};
-        std::mutex lock;
+        std::atomic<Status>     status{Status::Create};
+        std::mutex              lock;
         std::condition_variable cancel_notify;
     };
 
-    constexpr static const auto Timeout = std::chrono::milliseconds(100);
+    /**
+     * @brief Inner pointer for sharing ownership.
+     *
+     */
+    using InnerPtr = std::shared_ptr<Inner>;
 
   private:
-    QueuePtr _queue;
-    std::unique_ptr<std::thread> _worker{nullptr};
-
-    std::shared_ptr<Inner> _inner{std::make_shared<Inner>()};
+    QueuePtr  _queue;
+    ThreadPtr _worker{nullptr};
+    InnerPtr  _inner{std::make_shared<Inner>()};
 
   public:
     Worker(QueuePtr &&queue) : _queue(std::move(queue)) {}
 
     Worker(const QueuePtr &queue) : _queue(queue) {}
 
-    ~Worker() {
-        auto *ptr = _worker.get();
-        if (ptr != nullptr && ptr->joinable()) {
-            cancel();
-            ptr->join();
-        }
-    }
+    ~Worker() = default;
 
     Worker(const Worker &other) = delete;
     auto operator=(const Worker &other) -> Worker & = delete;
 
-    Worker(Worker &&other) = default;
+    Worker(Worker &&other) noexcept = default;
     auto operator=(Worker &&other) -> Worker & = default;
 
     /**
@@ -82,21 +84,7 @@ template <typename R, TaskPolicy P> class Worker {
      * @return true Successed to run worker.
      * @return false Failed to run worker.
      */
-    auto run() -> bool {
-        auto guard = std::lock_guard(_inner->lock);
-
-        if (_inner->status == Status::Running ||
-            _inner->status == Status::CancelWait) {
-            return false;
-        }
-
-        _worker = std::make_unique<std::thread>(
-            [queue = this->_queue, inner = this->_inner]() {
-                _worker_loop(std::move(queue), std::move(inner));
-            });
-        _inner->status = Status::Running;
-        return true;
-    }
+    auto run() -> bool;
 
     /**
      * @brief Cancel a worker, if worker is cancelled (Create or Cancel), the
@@ -105,16 +93,7 @@ template <typename R, TaskPolicy P> class Worker {
      * @return true Successed to mark worker as CancelWait.
      * @return false Failed to cancel worker.
      */
-    auto cancel() -> bool {
-        auto guard = std::lock_guard(_inner->lock);
-        if (_inner->status == Status::Cancel ||
-            _inner->status == Status::Create) {
-            return false;
-        }
-
-        _inner->status = Status::CancelWait;
-        return true;
-    }
+    auto cancel() -> bool;
 
     /**
      * @brief Cancel the `Cancel` operation,if worker is running, the operation
@@ -123,20 +102,59 @@ template <typename R, TaskPolicy P> class Worker {
      * @return true Successed to uncancel worker.
      * @return false Failed to uncancel worker.
      */
-    auto uncancel() -> bool {
-        auto guard = std::unique_lock(_inner->lock);
+    auto uncancel() -> bool;
 
-        if (_inner->status == Status::Running) {
-            return false;
-        }
+    /**
+     * @brief Wait for worker cancelled.
+     *
+     */
+    auto wait_for_cancel() -> void;
 
-        if (_inner->status == Status::CancelWait) {
-            _inner->status = Status::Running;
-            return true;
-        }
+    /**
+     * @brief Get worker status.
+     *
+     * @return Status Worker status.
+     */
+    NEXUS_INLINE auto status() -> Status { return _inner->status.load(); }
 
-        guard.unlock();
-        return run();
+    /**
+     * @brief Check if worker is in cancel wait.
+     *
+     * @return true Worker is in cancel wait.
+     * @return false Worker is not in cancel wait.
+     */
+    NEXUS_INLINE auto is_cancel_wait() -> bool {
+        return status() == Status::CancelWait;
+    }
+
+    /**
+     * @brief Check if worker is cancelled.
+     *
+     * @return true Worker is cancelled.
+     * @return false Worker is not cancelled.
+     */
+    NEXUS_INLINE auto is_cancelled() -> bool {
+        return status() == Status::Cancel;
+    }
+
+    /**
+     * @brief Check if worker is running.
+     *
+     * @return true Worker is running.
+     * @return false Worker is not running.
+     */
+    NEXUS_INLINE auto is_running() -> bool {
+        return status() == Status::Running;
+    }
+
+    /**
+     * @brief Check if worker is created.
+     *
+     * @return true Worker is created.
+     * @return false Worker is not created.
+     */
+    NEXUS_INLINE auto is_created() -> bool {
+        return status() == Status::Create;
     }
 
     /**
@@ -150,55 +168,18 @@ template <typename R, TaskPolicy P> class Worker {
     auto wait_for_cancel(const std::chrono::duration<Rep, Period> &timeout)
         -> bool {
         auto guard = std::unique_lock(_inner->lock);
-        auto status = _inner->cancel_notify.wait_for(guard, timeout, [this]() {
-            return _inner->status == Status::Cancel;
-        });
+        auto status = _inner->cancel_notify.wait_for(
+            guard, timeout, [this]() { return is_cancelled(); });
 
         return status != std::cv_status::timeout;
     }
-
-    /**
-     * @brief Wait for worker cancelled.
-     *
-     */
-    auto wait_for_cancel() -> void {
-        auto guard = std::unique_lock(_inner->lock);
-        _inner->cancel_notify.wait(
-            guard, [this]() { return _inner->status == Status::Cancel; });
-    }
-
-    auto status() -> Status { return _inner->status; }
-
-    auto is_cancel_wait() -> bool { return status() == Status::CancelWait; }
-
-    auto is_cancelled() -> bool { return status() == Status::Cancel; }
-
-    auto is_running() -> bool { return status() == Status::Running; }
 
   private:
     /**
      * @brief Worker loop, take task and execute it.
      *
      */
-    static void _worker_loop(QueuePtr queue, std::shared_ptr<Inner> inner) {
-        while (true) {
-            auto task = queue->pop_for(Timeout);
-
-            if (task.has_value()) {
-                task.value()();
-            }
-
-            auto guard = std::unique_lock(inner->lock);
-            if (inner->status == Status::CancelWait) {
-                inner->status = Status::Cancel;
-
-                guard.unlock();
-                inner->cancel_notify.notify_all();
-
-                break;
-            }
-        }
-    }
+    static auto _worker_loop(const QueuePtr &queue, InnerPtr &inner) -> void;
 };
 
 } // namespace nexus::exec

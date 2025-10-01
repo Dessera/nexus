@@ -1,18 +1,14 @@
 #pragma once
 
+#include "nexus/common.hpp"
 #include "nexus/exec/policy.hpp"
 #include "nexus/exec/queue.hpp"
-#include "nexus/exec/task.hpp"
 #include "nexus/exec/worker.hpp"
 
-#include <algorithm>
-#include <any>
 #include <cstddef>
+#include <deque>
 #include <future>
-#include <list>
 #include <memory>
-#include <stdexcept>
-#include <type_traits>
 #include <utility>
 
 namespace nexus::exec {
@@ -20,22 +16,26 @@ namespace nexus::exec {
 /**
  * @brief Thread pool to execute task.
  *
- * @tparam P Queue policy.
  */
-template <typename R = std::any, TaskPolicy P = TaskPolicy::FIFO>
-class ThreadPool {
+class NEXUS_EXPORT ThreadPool {
   public:
     /**
-     * @brief Task result type.
+     * @brief Return type of task in pool.
      *
      */
-    using Result = std::decay_t<R>;
+    using Result = TaskQueue::Result;
+
+    /**
+     * @brief Task type in pool.
+     *
+     */
+    using TaskType = TaskQueue::TaskType;
 
     /**
      * @brief Queue pointer type for sharing ownership.
      *
      */
-    using QueuePtr = std::shared_ptr<TaskQueue<Result, P>>;
+    using QueuePtr = std::shared_ptr<TaskQueue>;
 
     /**
      * @brief Thread pool status report.
@@ -48,34 +48,23 @@ class ThreadPool {
     };
 
   private:
-    QueuePtr _queue{std::make_shared<TaskQueue<Result, P>>()};
-    std::list<Worker<Result, P>> _workers;
-    std::list<Worker<Result, P>> _cancelled_workers;
+    QueuePtr           _queue;
+    std::deque<Worker> _workers;
+    std::deque<Worker> _cancelled_workers;
 
     std::size_t _max_workers;
     std::size_t _min_workers;
 
   public:
-    ThreadPool(std::size_t max_workers, std::size_t min_workers) // NOLINT
-        : _max_workers(max_workers), _min_workers(min_workers) {
-        if (max_workers < min_workers) {
-            throw std::range_error("max_workers is smaller than min_workers");
-        }
+    ThreadPool(TaskPolicy policy, std::size_t max_workers,
+               std::size_t min_workers); // NOLINT
+    ~ThreadPool();
 
-        resize_workers(min_workers);
-    }
+    ThreadPool(const ThreadPool &other) = delete;
+    auto operator=(const ThreadPool &other) -> ThreadPool & = delete;
 
-    /**
-     * @brief Add a task to the queue.
-     *
-     * @tparam Args Task construct arguments type.
-     * @param args Task construct arguments.
-     * @return std::future<Result> Task future.
-     */
-    template <typename... Args>
-    auto emplace(Args &&...args) -> std::future<Result> {
-        return push(Task<Result>(std::forward<Args>(args)...));
-    }
+    ThreadPool(ThreadPool &&other) noexcept = default;
+    auto operator=(ThreadPool &&other) -> ThreadPool & = default;
 
     /**
      * @brief Add a task to the queue.
@@ -83,11 +72,7 @@ class ThreadPool {
      * @param task Task object.
      * @return std::future<Result> Task future.
      */
-    auto push(Task<Result> &&task) -> std::future<Result> {
-        auto fut = task.get_future();
-        _queue->push(std::move(task));
-        return fut;
-    }
+    auto push(TaskType &&task) -> std::future<Result>;
 
     /**
      * @brief Resize the workers queue.
@@ -98,40 +83,23 @@ class ThreadPool {
      * @note The method does not gurarantee the immediate effectiveness of the
      * modification.
      */
-    auto resize_workers(std::size_t new_size) -> void {
-        new_size = std::max(new_size, _min_workers);
-        new_size = std::min(new_size, _max_workers);
+    auto resize_workers(std::size_t new_size) -> void;
 
-        auto prev_size = _workers.size();
+    /**
+     * @brief Cancel all workers.
+     *
+     */
+    NEXUS_INLINE auto release() -> void { _cancel_workers(_workers.size()); }
 
-        // No need to be adjusted.
-        if (prev_size == new_size) {
-            return;
-        }
-
-        // Need to add workers:
-        //   1. Reuse from _cancelled_workers.
-        //   2. Create new Workers.
-        if (prev_size < new_size) {
-            auto diff = new_size - prev_size;
-            diff -= _reuse_workers(diff);
-            for (std::size_t i = 0; i < diff; ++i) {
-                _workers.push_back(Worker(_queue));
-                _workers.back().run();
-            }
-            return;
-        }
-
-        // Need to remove workers:
-        //   1. Add to _cancelled_workers.
-        //   2. Pop workers and mark it as cancelled.
-        auto diff = prev_size - new_size;
-        for (std::size_t i = 0; i < diff; ++i) {
-            _cancelled_workers.push_back(std::move(_workers.front()));
-            _workers.pop_front();
-
-            _cancelled_workers.back().cancel();
-        }
+    /**
+     * @brief Add a task to the queue.
+     *
+     * @tparam Args Task construct arguments type.
+     * @param args Task construct arguments.
+     * @return std::future<Result> Task future.
+     */
+    template <typename... Args> auto emplace(Args &&...args) -> decltype(auto) {
+        return push(TaskType(std::forward<Args>(args)...));
     }
 
   private:
@@ -141,18 +109,15 @@ class ThreadPool {
      * @param need Workers count to be reused.
      * @return std::size_t Workers that are actually reused.
      */
-    auto _reuse_workers(std::size_t need) -> std::size_t {
-        std::size_t wake_cnt = 0;
-        while (!_cancelled_workers.empty() && wake_cnt < need) {
-            _workers.push_back(std::move(_cancelled_workers.front()));
-            _cancelled_workers.pop_front();
+    auto _reuse_workers(std::size_t need) -> std::size_t;
 
-            _workers.back().uncancel();
-            ++wake_cnt;
-        }
-
-        return wake_cnt;
-    }
+    /**
+     * @brief Cancel workers.
+     *
+     * @param need Workers count to be cancelled.
+     * @return std::size_t Workers that are actually cancelled.
+     */
+    auto _cancel_workers(std::size_t need) -> std::size_t;
 };
 
 } // namespace nexus::exec

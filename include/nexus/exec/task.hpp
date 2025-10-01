@@ -1,5 +1,7 @@
 #pragma once
 
+#include "nexus/common.hpp"
+
 #include <any>
 #include <exception>
 #include <functional>
@@ -17,11 +19,20 @@ namespace nexus::exec {
  */
 template <typename R = std::any> class Task {
   public:
+    /**
+     * @brief Return type of task.
+     *
+     */
     using Result = std::decay_t<R>;
+
+    /**
+     * @brief Task entry type.
+     *
+     */
     using Function = std::function<void(std::promise<Result> &)>;
 
   private:
-    Function _func;
+    Function             _func;
     std::promise<Result> _res;
 
   public:
@@ -46,14 +57,14 @@ template <typename R = std::any> class Task {
     Task(const Task &other) = delete;
     auto operator=(const Task &other) -> Task & = delete;
 
-    Task(Task &&other) = default;
+    Task(Task &&other) noexcept = default;
     auto operator=(Task &&other) -> Task & = default;
 
     /**
      * @brief Task function call wrapper.
      *
      */
-    auto operator()() -> void {
+    NEXUS_INLINE auto operator()() -> void {
         // Pass promise here to avoid invalid `this` pointer caused by
         // `std::move`.
         _func(_res);
@@ -64,12 +75,12 @@ template <typename R = std::any> class Task {
      *
      * @return std::future<Result> Task result future.
      */
-    auto get_future() { return _res.get_future(); }
+    NEXUS_INLINE auto get_future() { return _res.get_future(); }
 
   private:
     /**
      * @brief Wrap function and arguments into entry function, which has
-     * signature of `void()`.
+     * signature of `void(std::promise<Result>&)`.
      *
      * @tparam F Function type.
      * @tparam Args Arguments type.

@@ -27,7 +27,6 @@ TEST(Task, SuccessVoid) {
 }
 
 TEST(Task, Failed) {
-
     auto failed_task =
         Task<void>([]() { throw std::runtime_error("exception"); });
     failed_task(); // Should not throw here.

@@ -4,6 +4,7 @@ InsertNewlineAtEOF: true
 IndentWidth: 4
 ColumnLimit: 80
 AlignConsecutiveBitFields: Consecutive
+AlignConsecutiveDeclarations: Consecutive
 AlignConsecutiveMacros: Consecutive
 AlignConsecutiveShortCaseStatements:
   Enabled: true
