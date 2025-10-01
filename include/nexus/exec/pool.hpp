@@ -2,23 +2,50 @@
 
 #include "nexus/exec/policy.hpp"
 #include "nexus/exec/queue.hpp"
+#include "nexus/exec/task.hpp"
 #include "nexus/exec/worker.hpp"
 
 #include <algorithm>
 #include <any>
 #include <cstddef>
+#include <future>
 #include <list>
 #include <memory>
-#include <mutex>
 #include <stdexcept>
+#include <type_traits>
 #include <utility>
 
 namespace nexus::exec {
 
-template <TaskPolicy P> class ThreadPool {
+/**
+ * @brief Thread pool to execute task.
+ *
+ * @tparam P Queue policy.
+ */
+template <typename R = std::any, TaskPolicy P = TaskPolicy::FIFO>
+class ThreadPool {
   public:
-    using Result = std::any;
+    /**
+     * @brief Task result type.
+     *
+     */
+    using Result = std::decay_t<R>;
+
+    /**
+     * @brief Queue pointer type for sharing ownership.
+     *
+     */
     using QueuePtr = std::shared_ptr<TaskQueue<Result, P>>;
+
+    /**
+     * @brief Thread pool status report.
+     *
+     */
+    struct Report {
+        std::size_t running;
+        std::size_t cancel_wait;
+        std::size_t cancelled;
+    };
 
   private:
     QueuePtr _queue{std::make_shared<TaskQueue<Result, P>>()};
@@ -27,8 +54,6 @@ template <TaskPolicy P> class ThreadPool {
 
     std::size_t _max_workers;
     std::size_t _min_workers;
-
-    std::mutex _lock;
 
   public:
     ThreadPool(std::size_t max_workers, std::size_t min_workers) // NOLINT
@@ -40,9 +65,40 @@ template <TaskPolicy P> class ThreadPool {
         resize_workers(min_workers);
     }
 
-    auto resize_workers(std::size_t new_size) -> std::size_t {
-        auto guard = std::lock_guard(_lock);
+    /**
+     * @brief Add a task to the queue.
+     *
+     * @tparam Args Task construct arguments type.
+     * @param args Task construct arguments.
+     * @return std::future<Result> Task future.
+     */
+    template <typename... Args>
+    auto emplace(Args &&...args) -> std::future<Result> {
+        return push(Task<Result>(std::forward<Args>(args)...));
+    }
 
+    /**
+     * @brief Add a task to the queue.
+     *
+     * @param task Task object.
+     * @return std::future<Result> Task future.
+     */
+    auto push(Task<Result> &&task) -> std::future<Result> {
+        auto fut = task.get_future();
+        _queue->push(std::move(task));
+        return fut;
+    }
+
+    /**
+     * @brief Resize the workers queue.
+     *
+     * @param new_size New workers size.
+     *
+     * @note min_workers <= new_size <= max_workers
+     * @note The method does not gurarantee the immediate effectiveness of the
+     * modification.
+     */
+    auto resize_workers(std::size_t new_size) -> void {
         new_size = std::max(new_size, _min_workers);
         new_size = std::min(new_size, _max_workers);
 
@@ -50,7 +106,7 @@ template <TaskPolicy P> class ThreadPool {
 
         // No need to be adjusted.
         if (prev_size == new_size) {
-            return 0;
+            return;
         }
 
         // Need to add workers:
@@ -63,7 +119,7 @@ template <TaskPolicy P> class ThreadPool {
                 _workers.push_back(Worker(_queue));
                 _workers.back().run();
             }
-            return diff;
+            return;
         }
 
         // Need to remove workers:
@@ -76,7 +132,6 @@ template <TaskPolicy P> class ThreadPool {
 
             _cancelled_workers.back().cancel();
         }
-        return diff;
     }
 
   private:

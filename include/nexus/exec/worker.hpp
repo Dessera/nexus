@@ -62,10 +62,9 @@ template <typename R, TaskPolicy P> class Worker {
     Worker(const QueuePtr &queue) : _queue(queue) {}
 
     ~Worker() {
-        cancel();
-
         auto *ptr = _worker.get();
         if (ptr != nullptr && ptr->joinable()) {
+            cancel();
             ptr->join();
         }
     }
@@ -167,6 +166,14 @@ template <typename R, TaskPolicy P> class Worker {
         _inner->cancel_notify.wait(
             guard, [this]() { return _inner->status == Status::Cancel; });
     }
+
+    auto status() -> Status { return _inner->status; }
+
+    auto is_cancel_wait() -> bool { return status() == Status::CancelWait; }
+
+    auto is_cancelled() -> bool { return status() == Status::Cancel; }
+
+    auto is_running() -> bool { return status() == Status::Running; }
 
   private:
     /**
