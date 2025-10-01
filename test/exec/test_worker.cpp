@@ -1,3 +1,4 @@
+#include "nexus/config.hpp"
 #include "nexus/exec/queue.hpp"
 #include "nexus/exec/task.hpp"
 #include "nexus/exec/worker.hpp"
@@ -11,7 +12,7 @@ using nexus::exec::Task;
 using nexus::exec::TaskQueue;
 using nexus::exec::Worker;
 
-TEST(Worker, SingleWorker) {
+TEST(NEXUS_TESTS_DELAY(Worker), SingleWorker) {
     auto queue = std::make_shared<TaskQueue<int>>();
 
     auto worker = Worker(queue);
@@ -25,7 +26,7 @@ TEST(Worker, SingleWorker) {
     EXPECT_NO_THROW(EXPECT_EQ(task_future.get(), 42));
 }
 
-TEST(Worker, MultiWorker) {
+TEST(NEXUS_TESTS_DELAY(Worker), MultiWorker) {
     auto queue = std::make_shared<TaskQueue<int>>();
 
     auto worker1 = Worker(queue);
