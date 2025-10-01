@@ -2,19 +2,19 @@
 #include "nexus/exec/worker.hpp"
 
 #include <algorithm>
+#include <cstddef>
 #include <mutex>
+#include <utility>
 
 namespace nexus::exec {
 
-ThreadPool::ThreadPool(TaskPolicy policy, std::size_t max_workers,
-                       std::size_t min_workers) // NOLINT
-    : _queue(std::make_shared<TaskQueue>(policy)), _max_workers(max_workers),
-      _min_workers(min_workers) {
-    if (max_workers < min_workers) {
+ThreadPool::ThreadPool(const Config &cfg)
+    : _cfg(cfg), _queue(std::make_shared<TaskQueue>(_cfg.policy)) {
+    if (_cfg.max_workers < _cfg.min_workers) {
         throw std::range_error("max_workers is smaller than min_workers");
     }
 
-    resize_workers(min_workers);
+    resize_workers(_cfg.init_workers);
 }
 
 ThreadPool::~ThreadPool() { release(); }
@@ -28,8 +28,8 @@ auto ThreadPool::push(TaskType &&task) -> std::future<Result> {
 auto ThreadPool::resize_workers(std::size_t new_size) -> void {
     auto guard = std::lock_guard(_lock);
 
-    new_size = std::max(new_size, _min_workers);
-    new_size = std::min(new_size, _max_workers);
+    new_size = std::max(new_size, _cfg.min_workers);
+    new_size = std::min(new_size, _cfg.max_workers);
 
     auto prev_size = _workers.size();
 
@@ -55,6 +55,10 @@ auto ThreadPool::resize_workers(std::size_t new_size) -> void {
     //   1. Add to _cancelled_workers.
     //   2. Pop workers and mark it as cancelled.
     _cancel_workers(prev_size - new_size);
+
+    if (_cfg.remove_cancelled) {
+        _clean_cancelled_workers();
+    }
 }
 
 auto ThreadPool::report() -> Report {
@@ -98,6 +102,22 @@ auto ThreadPool::_cancel_workers(std::size_t need) -> std::size_t {
 
     _queue->wakeup_all();
     return cancel_cnt;
+}
+
+auto ThreadPool::_clean_cancelled_workers() -> std::size_t {
+    auto        cit = _cancelled_workers.begin();
+    std::size_t clean_cnt = 0;
+
+    while (cit != _cancelled_workers.end()) {
+        if ((*cit).is_cancelled()) {
+            cit = _cancelled_workers.erase(cit);
+            ++clean_cnt;
+        } else {
+            ++cit;
+        }
+    }
+
+    return clean_cnt;
 }
 
 } // namespace nexus::exec

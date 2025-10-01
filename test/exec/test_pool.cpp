@@ -1,16 +1,11 @@
-#include "nexus/exec/policy.hpp"
+#include "nexus/exec/builder.hpp"
 #include "nexus/exec/pool.hpp"
 
-#include <cstddef>
 #include <gtest/gtest.h>
 
 namespace {
 
-using nexus::exec::TaskPolicy;
-using nexus::exec::ThreadPool;
-
-constexpr std::size_t MAX_WORKERS = 5;
-constexpr std::size_t MIN_WORKERS = 1;
+using nexus::exec::default_builder;
 
 template <typename T> auto unwrap_future(std::future<std::any> &fut) -> T {
     auto result = fut.get();
@@ -18,7 +13,7 @@ template <typename T> auto unwrap_future(std::future<std::any> &fut) -> T {
 }
 
 TEST(Pool, Simple) {
-    auto pool = ThreadPool(TaskPolicy::FIFO, MAX_WORKERS, MIN_WORKERS);
+    auto pool = default_builder().build();
 
     auto task1_future = pool.emplace([]() { return 1; });
     auto task2_future = pool.emplace([]() { return 2; });
@@ -32,7 +27,7 @@ TEST(Pool, Simple) {
 TEST(Pool, ResizePool) {
     using namespace std::chrono_literals;
 
-    auto pool = ThreadPool(TaskPolicy::FIFO, MAX_WORKERS, MIN_WORKERS);
+    auto pool = default_builder().build();
 
     auto task1_future = pool.emplace([]() { return 1; });
     auto task2_future = pool.emplace([]() { return 2; });

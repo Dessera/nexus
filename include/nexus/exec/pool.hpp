@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <deque>
 #include <future>
+#include <list>
 #include <memory>
 #include <mutex>
 #include <utility>
@@ -48,19 +49,67 @@ class NEXUS_EXPORT ThreadPool {
         std::size_t cancelled;
     };
 
+    /**
+     * @brief Thread pool configuration.
+     *
+     */
+    struct Config {
+        TaskPolicy  policy;       /**< Queue policy. */
+        std::size_t max_workers;  /**< Max workers (threads). */
+        std::size_t min_workers;  /**< Min workers (threads). */
+        std::size_t init_workers; /**< Init workers (threads). */
+        bool remove_cancelled; /**< Remove cancelled workers in next resize. */
+    };
+
+    class Builder {
+      private:
+        Config _cfg;
+
+      public:
+        NEXUS_INLINE auto policy(TaskPolicy policy) -> Builder & {
+            _cfg.policy = policy;
+            return *this;
+        }
+
+        NEXUS_INLINE auto max_workers(std::size_t cnt) -> Builder & {
+            _cfg.max_workers = cnt;
+            return *this;
+        }
+
+        NEXUS_INLINE auto min_workers(std::size_t cnt) -> Builder & {
+            _cfg.min_workers = cnt;
+            return *this;
+        }
+
+        NEXUS_INLINE auto init_workers(std::size_t cnt) -> Builder & {
+            _cfg.init_workers = cnt;
+            return *this;
+        }
+
+        NEXUS_INLINE auto remove_cancelled(bool flag) -> Builder & {
+            _cfg.remove_cancelled = flag;
+            return *this;
+        }
+
+        [[nodiscard]] NEXUS_INLINE auto provide() const -> const Config & {
+            return _cfg;
+        }
+
+        NEXUS_INLINE auto build() -> ThreadPool { return {_cfg}; }
+    };
+
   private:
+    Config _cfg;
+
     QueuePtr           _queue;
     std::deque<Worker> _workers;
-    std::deque<Worker> _cancelled_workers;
-
-    std::size_t _max_workers;
-    std::size_t _min_workers;
+    std::list<Worker>  _cancelled_workers;
 
     std::mutex _lock;
 
   public:
-    ThreadPool(TaskPolicy policy, std::size_t max_workers,
-               std::size_t min_workers); // NOLINT
+    ThreadPool(const Config &cfg);
+
     ~ThreadPool();
 
     ThreadPool(const ThreadPool &other) = delete;
@@ -132,6 +181,13 @@ class NEXUS_EXPORT ThreadPool {
      * @return std::size_t Workers that are actually cancelled.
      */
     auto _cancel_workers(std::size_t need) -> std::size_t;
+
+    /**
+     * @brief Clean workers that already cancelled.
+     *
+     * @return std::size_t Workers that are actually cleaned.
+     */
+    auto _clean_cancelled_workers() -> std::size_t;
 };
 
 } // namespace nexus::exec
