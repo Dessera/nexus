@@ -1,4 +1,8 @@
 #include "nexus/exec/pool.hpp"
+#include "nexus/exec/worker.hpp"
+
+#include <algorithm>
+#include <mutex>
 
 namespace nexus::exec {
 
@@ -22,6 +26,8 @@ auto ThreadPool::push(TaskType &&task) -> std::future<Result> {
 }
 
 auto ThreadPool::resize_workers(std::size_t new_size) -> void {
+    auto guard = std::lock_guard(_lock);
+
     new_size = std::max(new_size, _min_workers);
     new_size = std::min(new_size, _max_workers);
 
@@ -49,6 +55,22 @@ auto ThreadPool::resize_workers(std::size_t new_size) -> void {
     //   1. Add to _cancelled_workers.
     //   2. Pop workers and mark it as cancelled.
     _cancel_workers(prev_size - new_size);
+}
+
+auto ThreadPool::report() -> Report {
+    auto guard = std::lock_guard(_lock);
+
+    auto res = Report();
+    for (const auto &worker : _cancelled_workers) {
+        if (worker.is_cancelled()) {
+            ++res.cancelled;
+        } else if (worker.is_cancel_wait()) {
+            ++res.cancel_wait;
+        }
+    }
+
+    res.running = _workers.size();
+    return res;
 }
 
 auto ThreadPool::_reuse_workers(std::size_t need) -> std::size_t {

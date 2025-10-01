@@ -1,4 +1,3 @@
-#include "nexus/config.hpp"
 #include "nexus/exec/policy.hpp"
 #include "nexus/exec/pool.hpp"
 
@@ -18,7 +17,7 @@ template <typename T> auto unwrap_future(std::future<std::any> &fut) -> T {
     return std::any_cast<T>(result);
 }
 
-TEST(NEXUS_TESTS_DELAY(Pool), Simple) {
+TEST(Pool, Simple) {
     auto pool = ThreadPool(TaskPolicy::FIFO, MAX_WORKERS, MIN_WORKERS);
 
     auto task1_future = pool.emplace([]() { return 1; });
@@ -30,7 +29,9 @@ TEST(NEXUS_TESTS_DELAY(Pool), Simple) {
     EXPECT_NO_THROW(EXPECT_EQ(unwrap_future<int>(task3_future), 3));
 }
 
-TEST(NEXUS_TESTS_DELAY(Pool), ResizePool) {
+TEST(Pool, ResizePool) {
+    using namespace std::chrono_literals;
+
     auto pool = ThreadPool(TaskPolicy::FIFO, MAX_WORKERS, MIN_WORKERS);
 
     auto task1_future = pool.emplace([]() { return 1; });

@@ -1,4 +1,3 @@
-#include "nexus/config.hpp"
 #include "nexus/exec/policy.hpp"
 #include "nexus/exec/queue.hpp"
 #include "nexus/exec/task.hpp"
@@ -20,7 +19,7 @@ template <typename T> auto unwrap_future(std::future<std::any> &fut) -> T {
     return std::any_cast<T>(result);
 }
 
-TEST(NEXUS_TESTS_DELAY(Worker), SingleWorker) {
+TEST(Worker, SingleWorker) {
     auto queue = std::make_shared<TaskQueue>(TaskPolicy::FIFO);
 
     auto worker = Worker(queue);
@@ -37,7 +36,7 @@ TEST(NEXUS_TESTS_DELAY(Worker), SingleWorker) {
     queue->wakeup_all();
 }
 
-TEST(NEXUS_TESTS_DELAY(Worker), MultiWorker) {
+TEST(Worker, MultiWorker) {
     auto queue = std::make_shared<TaskQueue>(TaskPolicy::FIFO);
 
     auto worker1 = Worker(queue);

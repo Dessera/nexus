@@ -9,6 +9,7 @@
 #include <deque>
 #include <future>
 #include <memory>
+#include <mutex>
 #include <utility>
 
 namespace nexus::exec {
@@ -55,6 +56,8 @@ class NEXUS_EXPORT ThreadPool {
     std::size_t _max_workers;
     std::size_t _min_workers;
 
+    std::mutex _lock;
+
   public:
     ThreadPool(TaskPolicy policy, std::size_t max_workers,
                std::size_t min_workers); // NOLINT
@@ -63,8 +66,8 @@ class NEXUS_EXPORT ThreadPool {
     ThreadPool(const ThreadPool &other) = delete;
     auto operator=(const ThreadPool &other) -> ThreadPool & = delete;
 
-    ThreadPool(ThreadPool &&other) noexcept = default;
-    auto operator=(ThreadPool &&other) -> ThreadPool & = default;
+    ThreadPool(ThreadPool &&other) noexcept = delete;
+    auto operator=(ThreadPool &&other) -> ThreadPool & = delete;
 
     /**
      * @brief Add a task to the queue.
@@ -89,7 +92,11 @@ class NEXUS_EXPORT ThreadPool {
      * @brief Cancel all workers.
      *
      */
-    NEXUS_INLINE auto release() -> void { _cancel_workers(_workers.size()); }
+    NEXUS_INLINE auto release() -> void {
+        auto guard = std::lock_guard(_lock);
+
+        _cancel_workers(_workers.size());
+    }
 
     /**
      * @brief Add a task to the queue.
@@ -101,6 +108,13 @@ class NEXUS_EXPORT ThreadPool {
     template <typename... Args> auto emplace(Args &&...args) -> decltype(auto) {
         return push(TaskType(std::forward<Args>(args)...));
     }
+
+    /**
+     * @brief Get thread pool status.
+     *
+     * @return Report Thread pool status.
+     */
+    [[nodiscard]] auto report() -> Report;
 
   private:
     /**

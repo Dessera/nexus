@@ -115,7 +115,9 @@ class NEXUS_EXPORT Worker {
      *
      * @return Status Worker status.
      */
-    NEXUS_INLINE auto status() -> Status { return _inner->status.load(); }
+    [[nodiscard]] NEXUS_INLINE auto status() const -> Status {
+        return _inner->status.load();
+    }
 
     /**
      * @brief Check if worker is in cancel wait.
@@ -123,7 +125,7 @@ class NEXUS_EXPORT Worker {
      * @return true Worker is in cancel wait.
      * @return false Worker is not in cancel wait.
      */
-    NEXUS_INLINE auto is_cancel_wait() -> bool {
+    [[nodiscard]] NEXUS_INLINE auto is_cancel_wait() const -> bool {
         return status() == Status::CancelWait;
     }
 
@@ -133,7 +135,7 @@ class NEXUS_EXPORT Worker {
      * @return true Worker is cancelled.
      * @return false Worker is not cancelled.
      */
-    NEXUS_INLINE auto is_cancelled() -> bool {
+    [[nodiscard]] NEXUS_INLINE auto is_cancelled() const -> bool {
         return status() == Status::Cancel;
     }
 
@@ -143,7 +145,7 @@ class NEXUS_EXPORT Worker {
      * @return true Worker is running.
      * @return false Worker is not running.
      */
-    NEXUS_INLINE auto is_running() -> bool {
+    [[nodiscard]] NEXUS_INLINE auto is_running() const -> bool {
         return status() == Status::Running;
     }
 
@@ -153,7 +155,7 @@ class NEXUS_EXPORT Worker {
      * @return true Worker is created.
      * @return false Worker is not created.
      */
-    NEXUS_INLINE auto is_created() -> bool {
+    [[nodiscard]] NEXUS_INLINE auto is_created() const -> bool {
         return status() == Status::Create;
     }
 
