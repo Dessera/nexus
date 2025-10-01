@@ -41,6 +41,14 @@ template <typename R = std::any> class Task {
         : _func(_wrap_entry<F, Args...>(std::forward<F>(func),
                                         std::forward<Args>(args)...)) {}
 
+    ~Task() = default;
+
+    Task(const Task &other) = delete;
+    auto operator=(const Task &other) -> Task & = delete;
+
+    Task(Task &&other) = default;
+    auto operator=(Task &&other) -> Task & = default;
+
     /**
      * @brief Task function call wrapper.
      *

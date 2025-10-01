@@ -7,6 +7,7 @@
 #include <any>
 #include <condition_variable>
 #include <mutex>
+#include <optional>
 #include <utility>
 
 namespace nexus::exec {
@@ -37,11 +38,40 @@ class TaskQueue {
      * @param args Task construct arguments.
      */
     template <typename... Args> auto emplace(Args &&...args) -> void {
+        push(Task<R>(std::forward<Args>(args)...));
+    }
+
+    /**
+     * @brief Add a task to the queue.
+     *
+     * @param task Task object.
+     */
+    auto push(Task<R> &&task) -> void {
         auto guard = std::unique_lock(_lock);
-        _inner.push(Task<R>(std::forward<Args>(args)...));
+        _inner.push(std::move(task));
         guard.unlock();
 
         _cond.notify_one();
+    }
+
+    /**
+     * @brief  Pop one task (wait until queue is ready or timeout).
+     *
+     * @param timeout Wait timeout.
+     * @return std::optional<Task<R>> Task object.
+     */
+    template <typename Rep, typename Period>
+    auto pop_for(const std::chrono::duration<Rep, Period> &timeout)
+        -> std::optional<Task<R>> {
+        auto guard = std::unique_lock(_lock);
+        auto status = _cond.wait_for(
+            guard, timeout, [this]() { return this->_inner.size() > 0; });
+
+        if (!status) {
+            return {};
+        }
+
+        return _inner.pop();
     }
 
     /**
