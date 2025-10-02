@@ -52,4 +52,46 @@ TEST(TaskQueue, LIFO) {
     EXPECT_EQ(unwrap_task<int>(task3), 0);
 }
 
+TEST(TaskQueue, PRIO) {
+    auto prio = TaskQueue(TaskPolicy::PRIO);
+
+    auto task1 = Task<>([]() { return 0; });
+    task1.prio(-1);
+
+    auto task2 = Task<>([]() { return 1; });
+    task2.prio(1);
+
+    auto task3 = Task<>([]() { return 2; });
+
+    prio.push(std::move(task1));
+    prio.push(std::move(task2));
+    prio.push(std::move(task3));
+
+    task2 = prio.pop();
+    task3 = prio.pop();
+    task1 = prio.pop();
+
+    EXPECT_EQ(unwrap_task<int>(task1), 0);
+    EXPECT_EQ(unwrap_task<int>(task2), 1);
+    EXPECT_EQ(unwrap_task<int>(task3), 2);
+}
+
+TEST(TaskQueue, RAND) {
+    auto rand = TaskQueue(TaskPolicy::RAND);
+
+    rand.emplace([]() { return 0; });
+    rand.emplace([]() { return 1; });
+    rand.emplace([]() { return 2; });
+
+    auto task1 = rand.pop();
+    auto task2 = rand.pop();
+    auto task3 = rand.pop();
+
+    auto res = unwrap_task<int>(task1);
+    res += unwrap_task<int>(task2);
+    res += unwrap_task<int>(task3);
+
+    EXPECT_EQ(res, 3);
+}
+
 } // namespace

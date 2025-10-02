@@ -30,7 +30,7 @@ TEST(Worker, SingleWorker) {
 
     queue->push(std::move(task));
 
-    EXPECT_NO_THROW(EXPECT_EQ(unwrap_future<int>(task_future), 42));
+    EXPECT_EQ(unwrap_future<int>(task_future), 42);
 
     EXPECT_TRUE(worker.cancel());
     queue->wakeup_all();
@@ -58,9 +58,9 @@ TEST(Worker, MultiWorker) {
     queue->push(std::move(task2));
     queue->push(std::move(task3));
 
-    EXPECT_NO_THROW(EXPECT_EQ(unwrap_future<int>(task1_future), 1));
-    EXPECT_NO_THROW(EXPECT_EQ(unwrap_future<int>(task2_future), 2));
-    EXPECT_NO_THROW(EXPECT_EQ(unwrap_future<int>(task3_future), 3));
+    EXPECT_EQ(unwrap_future<int>(task1_future), 1);
+    EXPECT_EQ(unwrap_future<int>(task2_future), 2);
+    EXPECT_EQ(unwrap_future<int>(task3_future), 3);
 
     EXPECT_TRUE(worker1.cancel());
     EXPECT_TRUE(worker2.cancel());

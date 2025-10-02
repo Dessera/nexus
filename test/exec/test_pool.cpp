@@ -19,9 +19,9 @@ TEST(Pool, Simple) {
     auto task2_future = pool.emplace([]() { return 2; });
     auto task3_future = pool.emplace([]() { return 3; });
 
-    EXPECT_NO_THROW(EXPECT_EQ(unwrap_future<int>(task1_future), 1));
-    EXPECT_NO_THROW(EXPECT_EQ(unwrap_future<int>(task2_future), 2));
-    EXPECT_NO_THROW(EXPECT_EQ(unwrap_future<int>(task3_future), 3));
+    EXPECT_EQ(unwrap_future<int>(task1_future), 1);
+    EXPECT_EQ(unwrap_future<int>(task2_future), 2);
+    EXPECT_EQ(unwrap_future<int>(task3_future), 3);
 }
 
 TEST(Pool, ResizePool) {
@@ -41,12 +41,12 @@ TEST(Pool, ResizePool) {
 
     pool.resize_workers(1);
 
-    EXPECT_NO_THROW(EXPECT_EQ(unwrap_future<int>(task1_future), 1));
-    EXPECT_NO_THROW(EXPECT_EQ(unwrap_future<int>(task2_future), 2));
-    EXPECT_NO_THROW(EXPECT_EQ(unwrap_future<int>(task3_future), 3));
-    EXPECT_NO_THROW(EXPECT_EQ(unwrap_future<int>(task4_future), 4));
-    EXPECT_NO_THROW(EXPECT_EQ(unwrap_future<int>(task5_future), 5));
-    EXPECT_NO_THROW(EXPECT_EQ(unwrap_future<int>(task6_future), 6));
+    EXPECT_EQ(unwrap_future<int>(task1_future), 1);
+    EXPECT_EQ(unwrap_future<int>(task2_future), 2);
+    EXPECT_EQ(unwrap_future<int>(task3_future), 3);
+    EXPECT_EQ(unwrap_future<int>(task4_future), 4);
+    EXPECT_EQ(unwrap_future<int>(task5_future), 5);
+    EXPECT_EQ(unwrap_future<int>(task6_future), 6);
 }
 
 } // namespace

@@ -7,6 +7,10 @@
 
 namespace nexus::exec::detail {
 
+/**
+ * @brief Task queue implementation with FIFO policy.
+ *
+ */
 class FIFO_TaskQueueInner : public TaskQueueInner {
   private:
     std::deque<Task<>> _queue;

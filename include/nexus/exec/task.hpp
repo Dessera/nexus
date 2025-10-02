@@ -4,6 +4,8 @@
 #include "nexus/private/exec/task.hpp"
 
 #include <any>
+#include <compare>
+#include <cstdint>
 #include <functional>
 #include <future>
 #include <type_traits>
@@ -30,9 +32,12 @@ template <typename R = std::any> class Task {
      */
     using DynFunction = std::function<void(std::promise<Result> &)>;
 
+    constexpr static std::int8_t DEFAULT_PRIO = 0;
+
   private:
     DynFunction          _func;
     std::promise<Result> _res;
+    int8_t               _prio{DEFAULT_PRIO};
 
   public:
     /**
@@ -46,7 +51,7 @@ template <typename R = std::any> class Task {
      * @note All reference type will be decayed.
      */
     template <typename F, typename... Args>
-    Task(F &&func, Args &&...args)
+    explicit Task(F &&func, Args &&...args)
         : _func(_wrap_entry<F, Args...>(std::forward<F>(func),
                                         std::forward<Args>(args)...)) {}
 
@@ -57,6 +62,14 @@ template <typename R = std::any> class Task {
 
     Task(Task &&other) noexcept = default;
     auto operator=(Task &&other) -> Task & = default;
+
+    /**
+     * @brief Sort by priority.
+     *
+     */
+    auto operator<=>(const Task &other) const -> std::weak_ordering {
+        return _prio <=> other._prio;
+    }
 
     /**
      * @brief Task function call wrapper.
@@ -74,6 +87,20 @@ template <typename R = std::any> class Task {
      * @return std::future<Result> Task result future.
      */
     NEXUS_INLINE auto get_future() { return _res.get_future(); }
+
+    /**
+     * @brief Get task priority.
+     *
+     * @return int8_t Task priority.
+     */
+    NEXUS_INLINE constexpr auto prio() -> int8_t { return _prio; }
+
+    /**
+     * @brief Set task priority.
+     *
+     * @param prio New task priority.
+     */
+    NEXUS_INLINE constexpr auto prio(int8_t prio) -> void { _prio = prio; }
 
   private:
     /**

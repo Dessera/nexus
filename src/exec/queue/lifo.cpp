@@ -6,6 +6,10 @@
 
 namespace nexus::exec::detail {
 
+/**
+ * @brief Task queue implementation with LIFO policy.
+ *
+ */
 class LIFO_TaskQueueInner : public TaskQueueInner {
   private:
     std::deque<Task<>> _queue;

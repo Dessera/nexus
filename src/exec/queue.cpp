@@ -1,12 +1,16 @@
 #include "nexus/exec/queue.hpp"
 #include "nexus/exec/policy.hpp"
+#include "nexus/private/exec/queue.hpp"
+
 #include <unordered_map>
 
 namespace nexus::exec {
 
 const std::unordered_map<TaskPolicy, TaskQueue::InnerPtr (*)()>
     TaskQueue::POLICY_CREATOR = {{TaskPolicy::FIFO, detail::_make_fifo_queue},
-                                 {TaskPolicy::LIFO, detail::_make_lifo_queue}};
+                                 {TaskPolicy::LIFO, detail::_make_lifo_queue},
+                                 {TaskPolicy::PRIO, detail::_make_prio_queue},
+                                 {TaskPolicy::RAND, detail::_make_rand_queue}};
 
 auto TaskQueue::push(TaskType &&task) -> void {
     auto guard = std::unique_lock(_lock);

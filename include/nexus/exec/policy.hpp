@@ -11,6 +11,8 @@ namespace nexus::exec {
 enum class TaskPolicy : uint8_t {
     FIFO,
     LIFO,
+    PRIO,
+    RAND,
 };
 
 } // namespace nexus::exec

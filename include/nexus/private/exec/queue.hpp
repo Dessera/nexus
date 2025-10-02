@@ -57,4 +57,18 @@ auto _make_fifo_queue() -> std::unique_ptr<TaskQueueInner>;
  */
 auto _make_lifo_queue() -> std::unique_ptr<TaskQueueInner>;
 
+/**
+ * @brief Create PRIO queue.
+ *
+ * @return std::unique_ptr<TaskQueueInner> Queue pointer.
+ */
+auto _make_prio_queue() -> std::unique_ptr<TaskQueueInner>;
+
+/**
+ * @brief Create RAND queue.
+ *
+ * @return std::unique_ptr<TaskQueueInner> Queue pointer.
+ */
+auto _make_rand_queue() -> std::unique_ptr<TaskQueueInner>;
+
 } // namespace nexus::exec::detail
