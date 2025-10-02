@@ -27,15 +27,15 @@ struct TestArgs {
     std::size_t thread_cnt;
 };
 
-auto null_tester() -> std::any { return 0ULL; }
+auto null_tester() -> std::size_t { return 0ULL; }
 
-auto sleep_tester() -> std::any {
+auto sleep_tester() -> std::size_t {
     using namespace std::chrono_literals;
     std::this_thread::sleep_for(2ms);
     return 0ULL;
 }
 
-auto loop_tester_1d4c0() -> std::any {
+auto loop_tester_1d4c0() {
     constexpr static std::size_t MAX_LOOPS = 120000;
     volatile std::size_t         num = 0;
     for (std::size_t i = 0; i < MAX_LOOPS; ++i) {
@@ -44,7 +44,7 @@ auto loop_tester_1d4c0() -> std::any {
     return num;
 }
 
-auto loop_tester_124f80() -> std::any {
+auto loop_tester_124f80() {
     constexpr static std::size_t MAX_LOOPS = 1200000;
     volatile std::size_t         num = 0;
     for (std::size_t i = 0; i < MAX_LOOPS; ++i) {
@@ -53,7 +53,7 @@ auto loop_tester_124f80() -> std::any {
     return num;
 }
 
-auto loop_tester_b71b00() -> std::any {
+auto loop_tester_b71b00() {
     constexpr static std::size_t MAX_LOOPS = 12000000;
     volatile std::size_t         num = 0;
     for (std::size_t i = 0; i < MAX_LOOPS; ++i) {
@@ -191,7 +191,7 @@ auto main(int argc, char **argv) -> int {
 
     auto futs = std::vector<std::future<std::any>>(args.task_cnt);
     for (std::size_t i = 0; i < args.task_cnt; ++i) {
-        futs[i] = pool.emplace([tester]() { return tester(); });
+        futs[i] = pool.emplace(tester);
     }
 
     auto insert_end = std::chrono::high_resolution_clock::now();
