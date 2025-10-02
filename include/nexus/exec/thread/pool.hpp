@@ -3,7 +3,7 @@
 #include "nexus/common.hpp"
 #include "nexus/exec/policy.hpp"
 #include "nexus/exec/queue.hpp"
-#include "nexus/exec/worker.hpp"
+#include "nexus/exec/thread/worker.hpp"
 
 #include <cstddef>
 #include <deque>
@@ -101,9 +101,9 @@ class NEXUS_EXPORT ThreadPool {
   private:
     Config _cfg;
 
-    QueuePtr           _queue;
-    std::deque<Worker> _workers;
-    std::list<Worker>  _cancelled_workers;
+    QueuePtr                 _queue;
+    std::deque<ThreadWorker> _workers;
+    std::list<ThreadWorker>  _cancelled_workers;
 
     std::mutex _lock;
 

@@ -1,11 +1,10 @@
-#include "nexus/exec/builder.hpp"
-#include "nexus/exec/pool.hpp"
+#include "nexus/exec/thread.hpp"
 
 #include <gtest/gtest.h>
 
 namespace {
 
-using nexus::exec::default_builder;
+namespace builder = nexus::exec::thread_builder;
 
 template <typename T> auto unwrap_future(std::future<std::any> &fut) -> T {
     auto result = fut.get();
@@ -13,7 +12,7 @@ template <typename T> auto unwrap_future(std::future<std::any> &fut) -> T {
 }
 
 TEST(Pool, Simple) {
-    auto pool = default_builder().build();
+    auto pool = builder::common().build();
 
     auto task1_future = pool.emplace([]() { return 1; });
     auto task2_future = pool.emplace([]() { return 2; });
@@ -27,7 +26,7 @@ TEST(Pool, Simple) {
 TEST(Pool, ResizePool) {
     using namespace std::chrono_literals;
 
-    auto pool = default_builder().build();
+    auto pool = builder::common().build();
 
     auto task1_future = pool.emplace([]() { return 1; });
     auto task2_future = pool.emplace([]() { return 2; });

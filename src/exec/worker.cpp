@@ -1,8 +1,8 @@
-#include "nexus/exec/worker.hpp"
+#include "nexus/exec/thread/worker.hpp"
 
 namespace nexus::exec {
 
-auto Worker::run() -> bool {
+auto ThreadWorker::run() -> bool {
     auto guard = std::lock_guard(_inner->lock);
 
     if (is_running() || is_cancel_wait()) {
@@ -18,7 +18,7 @@ auto Worker::run() -> bool {
     return true;
 }
 
-auto Worker::cancel() -> bool {
+auto ThreadWorker::cancel() -> bool {
     auto guard = std::lock_guard(_inner->lock);
 
     if (is_cancelled() || is_created()) {
@@ -30,7 +30,7 @@ auto Worker::cancel() -> bool {
     return true;
 }
 
-auto Worker::uncancel() -> bool {
+auto ThreadWorker::uncancel() -> bool {
     auto guard = std::unique_lock(_inner->lock);
 
     // Running => Don't need to uncancel.
@@ -49,12 +49,13 @@ auto Worker::uncancel() -> bool {
     return run();
 }
 
-auto Worker::wait_for_cancel() -> void {
+auto ThreadWorker::wait_for_cancel() -> void {
     auto guard = std::unique_lock(_inner->lock);
     _inner->cancel_notify.wait(guard, [this]() { return is_cancelled(); });
 }
 
-auto Worker::_worker_loop(const QueuePtr &queue, InnerPtr &inner) -> void {
+auto ThreadWorker::_worker_loop(const QueuePtr &queue, InnerPtr &inner)
+    -> void {
     while (true) {
         auto task = queue->pop(
             [&inner]() { return inner->status.load() == Status::CancelWait; });

@@ -1,5 +1,5 @@
-#include "nexus/exec/pool.hpp"
-#include "nexus/exec/worker.hpp"
+#include "nexus/exec/thread/pool.hpp"
+#include "nexus/exec/thread/worker.hpp"
 
 #include <algorithm>
 #include <cstddef>

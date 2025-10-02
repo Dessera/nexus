@@ -1,4 +1,4 @@
-#include "nexus/exec/builder.hpp"
+#include "nexus/exec/thread.hpp"
 
 #include <any>
 #include <cstddef>
@@ -16,7 +16,7 @@
 
 namespace {
 
-enum class BuilderType : uint8_t { Default, CpuBound, IOBound, Time };
+enum class BuilderType : uint8_t { Common, CpuBound, IOBound, Time };
 
 enum class TaskType : uint8_t { Sleep, TinyLoop, MidLoop, LargeLoop };
 
@@ -63,8 +63,8 @@ auto loop_tester_b71b00() {
 }
 
 auto parse_builder_type(std::string_view str) -> std::optional<BuilderType> {
-    if (str == "default") {
-        return BuilderType::Default;
+    if (str == "common") {
+        return BuilderType::Common;
     }
 
     if (str == "cpu") {
@@ -146,14 +146,14 @@ auto parse_args(const std::span<char *> &args) -> std::optional<TestArgs> {
 }
 
 auto get_builder(BuilderType type) {
-    using namespace nexus::exec;
+    namespace builder = nexus::exec::thread_builder;
 
     switch (type) {
-    case BuilderType::Default:  return default_builder();
-    case BuilderType::CpuBound: return cpu_bound_builder();
-    case BuilderType::IOBound:  return io_bound_builder();
-    case BuilderType::Time:     return time_bound_builder();
-    default:                    return blank_builder();
+    case BuilderType::Common:   return builder::common();
+    case BuilderType::CpuBound: return builder::cpu_bound();
+    case BuilderType::IOBound:  return builder::io_bound();
+    case BuilderType::Time:     return builder::time_bound();
+    default:                    return builder::blank();
     }
 }
 

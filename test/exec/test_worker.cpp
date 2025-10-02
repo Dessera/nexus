@@ -1,7 +1,7 @@
 #include "nexus/exec/policy.hpp"
 #include "nexus/exec/queue.hpp"
 #include "nexus/exec/task.hpp"
-#include "nexus/exec/worker.hpp"
+#include "nexus/exec/thread.hpp"
 
 #include <future>
 #include <gtest/gtest.h>
@@ -12,7 +12,7 @@ namespace {
 using nexus::exec::Task;
 using nexus::exec::TaskPolicy;
 using nexus::exec::TaskQueue;
-using nexus::exec::Worker;
+using nexus::exec::ThreadWorker;
 
 template <typename T> auto unwrap_future(std::future<std::any> &fut) -> T {
     auto result = fut.get();
@@ -22,7 +22,7 @@ template <typename T> auto unwrap_future(std::future<std::any> &fut) -> T {
 TEST(Worker, SingleWorker) {
     auto queue = std::make_shared<TaskQueue>(TaskPolicy::FIFO);
 
-    auto worker = Worker(queue);
+    auto worker = ThreadWorker(queue);
     EXPECT_TRUE(worker.run());
 
     auto task = Task([]() { return 42; }); // NOLINT
@@ -39,10 +39,10 @@ TEST(Worker, SingleWorker) {
 TEST(Worker, MultiWorker) {
     auto queue = std::make_shared<TaskQueue>(TaskPolicy::FIFO);
 
-    auto worker1 = Worker(queue);
+    auto worker1 = ThreadWorker(queue);
     EXPECT_TRUE(worker1.run());
 
-    auto worker2 = Worker(queue);
+    auto worker2 = ThreadWorker(queue);
     EXPECT_TRUE(worker2.run());
 
     auto task1 = Task([]() { return 1; });

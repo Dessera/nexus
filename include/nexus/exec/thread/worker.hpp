@@ -18,7 +18,7 @@ namespace nexus::exec {
  * @brief Worker thread.
  *
  */
-class NEXUS_EXPORT Worker {
+class NEXUS_EXPORT ThreadWorker {
   public:
     /**
      * @brief Queue pointer type for sharing ownership.
@@ -65,17 +65,17 @@ class NEXUS_EXPORT Worker {
     InnerPtr  _inner{std::make_shared<Inner>()};
 
   public:
-    Worker(QueuePtr &&queue) : _queue(std::move(queue)) {}
+    ThreadWorker(QueuePtr &&queue) : _queue(std::move(queue)) {}
 
-    Worker(const QueuePtr &queue) : _queue(queue) {}
+    ThreadWorker(const QueuePtr &queue) : _queue(queue) {}
 
-    ~Worker() = default;
+    ~ThreadWorker() = default;
 
-    Worker(const Worker &other) = delete;
-    auto operator=(const Worker &other) -> Worker & = delete;
+    ThreadWorker(const ThreadWorker &other) = delete;
+    auto operator=(const ThreadWorker &other) -> ThreadWorker & = delete;
 
-    Worker(Worker &&other) noexcept = default;
-    auto operator=(Worker &&other) -> Worker & = default;
+    ThreadWorker(ThreadWorker &&other) noexcept = default;
+    auto operator=(ThreadWorker &&other) -> ThreadWorker & = default;
 
     /**
      * @brief Run a worker, if worker is running (Running or CancelWait),
