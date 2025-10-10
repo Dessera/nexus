@@ -1,18 +1,21 @@
 #include "nexus/error.hpp"
 #include "nexus/utils/result.hpp"
+#include "nexus/utils/result/variant.hpp"
 
 #include <gtest/gtest.h>
 #include <utility>
 
 namespace {
 
+using nexus::Err;
 using nexus::Error;
+using nexus::Ok;
 using nexus::Result;
 
-auto make_value(int value) -> Result<int> { return value; }
+auto make_value(int value) -> Result<int, Error> { return Ok(value); }
 
-auto make_error() -> Result<int> {
-    return Error(Error::Unwrap, "Unknown error");
+auto make_error() -> Result<int, Error> {
+    return Err(Error(Error::Unwrap, "Unknown error"));
 }
 
 TEST(Result, Iterator) {
@@ -107,7 +110,7 @@ TEST(Result, Merge) {
 }
 
 TEST(Result, Flattern) {
-    auto res_ok = Result<Result<int>>(1);
+    auto res_ok = Result<Result<int, Error>, Error>(Ok(make_value(1)));
     auto res_flat = res_ok.flattern();
 
     EXPECT_EQ(res_flat.unwrap(), 1);

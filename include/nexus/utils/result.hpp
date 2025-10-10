@@ -3,6 +3,7 @@
 #include "nexus/common.hpp"
 #include "nexus/error.hpp"
 #include "nexus/utils/format.hpp"
+#include "nexus/utils/result/variant.hpp"
 
 #include <concepts>
 #include <cstddef>
@@ -31,18 +32,16 @@ concept IsResult = requires {
  * @tparam T Value type.
  * @tparam E Error type.
  */
-template <typename T, typename E = Error>
-    requires(std::derived_from<E, std::exception>)
-class Result {
+template <typename T, typename E>
+class Result : public std::variant<Ok<T>, Err<E>> {
   public:
-    using ValueType = std::decay_t<T>;
-    using ErrorType = E;
-
-    using VariantType = std::variant<ValueType, ErrorType>;
+    using ValueType = Ok<T>::ValueType;
+    using ErrorType = Err<E>::ErrorType;
+    using VariantType = std::variant<Ok<T>, Err<E>>;
 
     /**
-     * @brief Result iterator, will yield one value if the result is not error,
-     * otherwise nothing.
+     * @brief Result iterator, will yield one value if the result is not
+     * error, otherwise nothing.
      *
      */
     class Iterator {
@@ -54,11 +53,11 @@ class Result {
         Result *_result{nullptr};
 
       public:
-        Iterator(Result &result)
+        constexpr Iterator(Result &result)
             : _result(result.is_err() ? nullptr : &result) {}
 
-        Iterator() = default;
-        ~Iterator() = default;
+        constexpr Iterator() = default;
+        constexpr ~Iterator() = default;
 
         NEXUS_COPY_DEFAULT(Iterator);
         NEXUS_MOVE_DEFAULT(Iterator);
@@ -68,13 +67,12 @@ class Result {
          * result).
          *
          * @return ValueType& Result value.
-         * @throw Error nexus::Error if the iterator cannot be unwrapped.
          */
-        auto operator*() const -> ValueType & {
+        constexpr auto operator*() const -> ValueType & {
             [[likely]] if (auto *value =
-                               std::get_if<ValueType>(&_result->_inner);
+                               std::get_if<Ok<ValueType>>(&_result->_base());
                            value != nullptr) {
-                return *value;
+                return value->value();
             }
 
             throw Error(Error::Unwrap, "Result cannot be dereferenced");
@@ -85,7 +83,7 @@ class Result {
          *
          * @return Iterator& End iterator.
          */
-        auto operator++() -> Iterator & {
+        constexpr auto operator++() -> Iterator & {
             _result = nullptr;
             return *this;
         }
@@ -95,7 +93,7 @@ class Result {
          *
          * @return Iterator Previous iterator.
          */
-        auto operator++(int) -> Iterator {
+        constexpr auto operator++(int) -> Iterator {
             auto tmp = *this;
             ++*this;
             return tmp;
@@ -108,7 +106,7 @@ class Result {
          * @return true Iterators have the same result pointer.
          * @return false Iterators don't have the same result pointer.
          */
-        auto operator==(const Iterator &other) const -> bool {
+        constexpr auto operator==(const Iterator &other) const -> bool {
             return _result == other._result;
         }
     };
@@ -141,13 +139,12 @@ class Result {
          * result).
          *
          * @return ErrorIterator& Result error.
-         * @throw Error nexus::Error if the iterator cannot be unwrapped.
          */
         auto operator*() const -> ErrorType & {
             [[likely]] if (auto *value =
-                               std::get_if<ErrorType>(&_result->_inner);
+                               std::get_if<Err<ErrorType>>(&_result->_base());
                            value != nullptr) {
-                return *value;
+                return value->error();
             }
 
             throw Error(Error::Unwrap, "Result cannot be dereferenced");
@@ -221,14 +218,11 @@ class Result {
         }
     };
 
-  private:
-    VariantType _inner;
-
-  public:
     template <typename... Args>
-    Result(Args &&...args) : _inner(std::forward<Args>(args)...) {}
+    constexpr Result(Args &&...args)
+        : VariantType(std::forward<Args>(args)...) {}
 
-    ~Result() = default;
+    constexpr ~Result() = default;
 
     NEXUS_COPY_DEFAULT(Result);
     NEXUS_MOVE_DEFAULT(Result);
@@ -238,7 +232,7 @@ class Result {
      *
      * @return Iterator Begin iterator.
      */
-    [[nodiscard]] NEXUS_INLINE auto begin() -> Iterator {
+    [[nodiscard]] constexpr NEXUS_INLINE auto begin() -> Iterator {
         return Iterator(*this);
     }
 
@@ -247,14 +241,16 @@ class Result {
      *
      * @return Iterator End iterator.
      */
-    [[nodiscard]] NEXUS_INLINE auto end() -> Iterator { return Iterator(); }
+    [[nodiscard]] constexpr NEXUS_INLINE auto end() -> Iterator {
+        return Iterator();
+    }
 
     /**
      * @brief Get the begin error iterator.
      *
      * @return ErrorIterator Begin error iterator.
      */
-    [[nodiscard]] NEXUS_INLINE auto ebegin() -> ErrorIterator {
+    [[nodiscard]] constexpr NEXUS_INLINE auto ebegin() -> ErrorIterator {
         return ErrorIterator(*this);
     }
 
@@ -263,7 +259,7 @@ class Result {
      *
      * @return ErrorIterator End error iterator.
      */
-    [[nodiscard]] NEXUS_INLINE auto eend() -> ErrorIterator {
+    [[nodiscard]] constexpr NEXUS_INLINE auto eend() -> ErrorIterator {
         return ErrorIterator();
     }
 
@@ -272,7 +268,8 @@ class Result {
      *
      * @return ErrorEnumerator error enumerator.
      */
-    [[nodiscard]] NEXUS_INLINE auto error_enumerator() -> ErrorEnumerator {
+    [[nodiscard]] constexpr NEXUS_INLINE auto error_enumerator()
+        -> ErrorEnumerator {
         return ErrorEnumerator(*this);
     }
 
@@ -285,9 +282,9 @@ class Result {
      * @return Result<U, E> Final result.
      */
     template <typename U>
-    [[nodiscard]] auto both(Result<U, E> &&res) -> Result<U, E> {
+    [[nodiscard]] constexpr auto both(Result<U, E> &&res) -> Result<U, E> {
         if (is_err()) {
-            return Result<U, E>(unwrap_err());
+            return Err(unwrap_err());
         }
         return std::move(res);
     }
@@ -299,14 +296,15 @@ class Result {
      * @param conv Result converter.
      * @return Result<U, E> Final result.
      */
-    [[nodiscard]] auto both_and(auto &&conv) -> decltype(auto)
+    [[nodiscard]] constexpr auto both_and(auto &&conv) -> decltype(auto)
         requires(IsResult<std::invoke_result_t<decltype(conv), ValueType>>)
     {
         using RealValueType =
             std::invoke_result_t<decltype(conv), ValueType>::ValueType;
+        using FinalResultType = Result<RealValueType, E>;
 
         if (is_err()) {
-            return Result<RealValueType, E>(unwrap_err());
+            return FinalResultType(Err(unwrap_err()));
         }
         return conv(unwrap());
     }
@@ -319,11 +317,11 @@ class Result {
      * @return Result<T, F> Final result.
      */
     template <typename F>
-    [[nodiscard]] auto either(Result<T, F> &&res) -> Result<T, F> {
+    [[nodiscard]] constexpr auto either(Result<T, F> &&res) -> Result<T, F> {
         if (is_err()) {
             return std::move(res);
         }
-        return Result<T, F>(unwrap());
+        return Ok(unwrap());
     }
 
     /**
@@ -331,31 +329,34 @@ class Result {
      * converted result.
      *
      * @param conv Result converter.
-     * @return Result<T, std::invoke_result_t<decltype(conv),
-     * ErrorType>::ErrorType> Final result.
+     * @return decltype(auto) Final result.
      */
-    [[nodiscard]] auto either_or(auto &&conv) -> decltype(auto)
+    [[nodiscard]] constexpr auto either_or(auto &&conv) -> decltype(auto)
         requires(IsResult<std::invoke_result_t<decltype(conv), ErrorType>>)
     {
         using RealErrorType =
             std::invoke_result_t<decltype(conv), ErrorType>::ErrorType;
+        using FinalResultType = Result<T, RealErrorType>;
 
         if (is_err()) {
             return conv(unwrap_err());
         }
-        return Result<T, RealErrorType>(unwrap());
+        return FinalResultType(Ok(unwrap()));
     }
 
     /**
      * @brief Convert Result<Result<T, E>, E> to Result<T, E>.
      *
+     * @return decltype(auto) Final result.
      */
-    [[nodiscard]] auto flattern() -> decltype(auto)
+    [[nodiscard]] constexpr auto flattern() -> decltype(auto)
         requires(IsResult<ValueType> &&
                  std::is_same_v<typename ValueType::ErrorType, ErrorType>)
     {
+        using FinalResultType = Result<typename ValueType::ValueType, E>;
+
         if (is_err()) {
-            return Result<typename ValueType::ValueType, E>(unwrap_err());
+            return FinalResultType(Err(unwrap_err()));
         }
         return unwrap();
     }
@@ -366,7 +367,7 @@ class Result {
      * @param func Inspect function.
      * @return Result Moved result.
      */
-    [[nodiscard]] auto inspect(auto &&func) -> Result {
+    [[nodiscard]] constexpr auto inspect(auto &&func) -> Result {
         for (const auto &value : *this) {
             func(value);
         }
@@ -380,7 +381,7 @@ class Result {
      * @param func Inspect function.
      * @return Result Moved result.
      */
-    [[nodiscard]] auto inspect_err(auto &&func) -> Result {
+    [[nodiscard]] constexpr auto inspect_err(auto &&func) -> Result {
         for (const auto &err : this->error_enumerator()) {
             func(err);
         }
@@ -394,8 +395,8 @@ class Result {
      * @return true Result is error.
      * @return false Result is not error.
      */
-    [[nodiscard]] NEXUS_INLINE auto is_err() -> bool {
-        return std::get_if<ErrorType>(&_inner) != nullptr;
+    [[nodiscard]] constexpr NEXUS_INLINE auto is_err() -> bool {
+        return std::get_if<Err<ErrorType>>(&_base()) != nullptr;
     }
 
     /**
@@ -404,9 +405,9 @@ class Result {
      * @return true Result is error and matches predicate.
      * @return false Result is not error or does not match predicate.
      */
-    [[nodiscard]] auto is_err_and(auto &&pred) -> bool {
-        if (auto *err = std::get_if<ErrorType>(&_inner); err != nullptr) {
-            return pred(std::move(*err));
+    [[nodiscard]] constexpr auto is_err_and(auto &&pred) -> bool {
+        if (auto *err = std::get_if<Err<ErrorType>>(&_base()); err != nullptr) {
+            return pred(std::move(err->error()));
         }
         return false;
     }
@@ -417,8 +418,8 @@ class Result {
      * @return true Result is value.
      * @return false Result is not value.
      */
-    [[nodiscard]] NEXUS_INLINE auto is_ok() -> bool {
-        return std::get_if<ValueType>(&_inner) != nullptr;
+    [[nodiscard]] constexpr NEXUS_INLINE auto is_ok() -> bool {
+        return std::get_if<Ok<ValueType>>(&_base()) != nullptr;
     }
 
     /**
@@ -427,9 +428,10 @@ class Result {
      * @return true Result is value and matches predicate.
      * @return false Result is not value or does not match predicate.
      */
-    [[nodiscard]] auto is_ok_and(auto &&pred) -> bool {
-        if (auto *value = std::get_if<ValueType>(&_inner); value != nullptr) {
-            return pred(std::move(*value));
+    [[nodiscard]] constexpr auto is_ok_and(auto &&pred) -> bool {
+        if (auto *value = std::get_if<Ok<ValueType>>(&_base());
+            value != nullptr) {
+            return pred(std::move(value->value()));
         }
         return false;
     }
@@ -440,7 +442,7 @@ class Result {
      * @param msg Error message when throw.
      * @return ValueType Result value.
      */
-    [[nodiscard]] auto expect(std::string &&msg) -> ValueType {
+    [[nodiscard]] constexpr auto expect(std::string &&msg) -> ValueType {
         if (is_ok()) {
             return unwrap();
         }
@@ -453,7 +455,7 @@ class Result {
      * @param msg Error message when throw.
      * @return ValueType Result value.
      */
-    [[nodiscard]] NEXUS_INLINE auto expect(const std::string &msg)
+    [[nodiscard]] constexpr NEXUS_INLINE auto expect(const std::string &msg)
         -> ValueType {
         expect(std::string(msg));
     }
@@ -464,7 +466,7 @@ class Result {
      * @param msg Error message when throw.
      * @return ErrorType Result error.
      */
-    [[nodiscard]] auto expect_err(std::string &&msg) -> ErrorType {
+    [[nodiscard]] constexpr auto expect_err(std::string &&msg) -> ErrorType {
         if (is_err()) {
             return unwrap_err();
         }
@@ -477,7 +479,7 @@ class Result {
      * @param msg Error message when throw.
      * @return ErrorType Result error.
      */
-    [[nodiscard]] NEXUS_INLINE auto expect_err(const std::string &msg)
+    [[nodiscard]] constexpr NEXUS_INLINE auto expect_err(const std::string &msg)
         -> ErrorType {
         return expect_err(std::string(msg));
     }
@@ -486,20 +488,23 @@ class Result {
      * @brief Get and consume the result, throw if the result is an error.
      *
      * @return ValueType Result value.
-     * @throw ErrorType User-defined error.
      */
-    [[nodiscard]] auto unwrap() -> ValueType {
+    [[nodiscard]] constexpr auto unwrap() -> ValueType {
         return std::visit(
             [](auto &&result) -> ValueType {
-                using RealValueType = std::decay_t<decltype(result)>;
+                using RealVariantType = std::decay_t<decltype(result)>;
 
-                if constexpr (std::is_same_v<RealValueType, ErrorType>) {
-                    throw std::move(result); // NOLINT
+                if constexpr (IsOk<RealVariantType>) {
+                    return std::move(result.value());
+                } else if constexpr (IsErr<RealVariantType>) {
+                    throw Error(Error::Unwrap, "Result is an error ({})",
+                                to_formattable(result.error()));
                 } else {
-                    return std::move(result); // NOLINT
+                    static_assert(false,
+                                  "Result has an unexpected variant type");
                 }
             },
-            std::move(_inner));
+            _base());
     }
 
     /**
@@ -509,18 +514,21 @@ class Result {
      * @param value Fallback value.
      * @return ValueType Result value.
      */
-    [[nodiscard]] auto unwrap_or(ValueType &&value) -> ValueType {
+    [[nodiscard]] constexpr auto unwrap_or(ValueType &&value) -> ValueType {
         return std::visit(
             [&](auto &&result) -> ValueType {
-                using RealValueType = std::decay_t<decltype(result)>;
+                using RealVariantType = std::decay_t<decltype(result)>;
 
-                if constexpr (std::is_same_v<RealValueType, ErrorType>) {
+                if constexpr (IsOk<RealVariantType>) {
+                    return std::move(result.value());
+                } else if constexpr (IsErr<RealVariantType>) {
                     return std::move(value);
                 } else {
-                    return std::move(result); // NOLINT
+                    static_assert(false,
+                                  "Result has an unexpected variant type");
                 }
             },
-            std::move(_inner));
+            _base());
     }
 
     /**
@@ -529,9 +537,8 @@ class Result {
      *
      * @param value Fallback value.
      * @return ValueType Result value.
-     * @note Value will be copied.
      */
-    [[nodiscard]] NEXUS_INLINE auto unwrap_or(const ValueType &value)
+    [[nodiscard]] constexpr NEXUS_INLINE auto unwrap_or(const ValueType &value)
         -> ValueType {
         return unwrap_or(ValueType(value));
     }
@@ -542,7 +549,7 @@ class Result {
      *
      * @return ValueType Result value.
      */
-    [[nodiscard]] NEXUS_INLINE auto unwrap_or_default() -> ValueType {
+    [[nodiscard]] constexpr NEXUS_INLINE auto unwrap_or_default() -> ValueType {
         return unwrap_or(ValueType());
     }
 
@@ -551,50 +558,54 @@ class Result {
      *
      * @return ErrorType Result error.
      */
-    [[nodiscard]] auto unwrap_err() -> ErrorType {
+    [[nodiscard]] constexpr auto unwrap_err() -> ErrorType {
         return std::visit(
             [](auto &&result) -> ErrorType {
-                using RealValueType = std::decay_t<decltype(result)>;
+                using RealVariantType = std::decay_t<decltype(result)>;
 
-                if constexpr (std::is_same_v<RealValueType, ErrorType>) {
-                    return std::move(result); // NOLINT
+                if constexpr (IsErr<RealVariantType>) {
+                    return std::move(result.error());
+                } else if constexpr (IsOk<RealVariantType>) {
+                    throw Error(Error::Unwrap, "Result is not an error ({})",
+                                to_formattable(result.value()));
+                } else {
+                    static_assert(false,
+                                  "Result has an unexpected variant type");
                 }
-
-                throw Error(Error::Unwrap, "Result is not an error ({})",
-                            to_formattable(result));
             },
-            std::move(_inner));
+            _base());
     }
 
     /**
      * @brief Convert value if exists, return the new result.
      *
      * @param conv Convert function.
-     * @return Result<std::invoke_result_t<decltype(conv), ValueType>,
-     * ErrorType> New result.
+     * @return decltype(auto) New result.
      */
-    [[nodiscard]] auto map(auto &&conv) -> decltype(auto) {
+    [[nodiscard]] constexpr auto map(auto &&conv) -> decltype(auto) {
         using RealValueType = std::invoke_result_t<decltype(conv), ValueType>;
+        using FinalResultType = Result<RealValueType, E>;
 
         if (is_ok()) {
-            return Result<RealValueType, E>(conv(unwrap()));
+            return FinalResultType(Ok(conv(unwrap())));
         }
-        return Result<RealValueType, E>(unwrap_err());
+        return FinalResultType(Err(unwrap_err()));
     }
 
     /**
      * @brief Convert error if exists, return the new result.
      *
      * @param conv Convert function.
-     * @return Result New result.
+     * @return decltype(auto) New result.
      */
-    [[nodiscard]] auto map_err(auto &&conv) -> decltype(auto) {
+    [[nodiscard]] constexpr auto map_err(auto &&conv) -> decltype(auto) {
         using RealErrorType = std::invoke_result_t<decltype(conv), ErrorType>;
+        using FinalResultType = Result<T, RealErrorType>;
 
         if (is_err()) {
-            return Result<T, RealErrorType>(conv(unwrap_err()));
+            return FinalResultType(Err(conv(unwrap_err())));
         }
-        return Result<T, RealErrorType>(unwrap());
+        return FinalResultType(Ok(unwrap()));
     }
 
     /**
@@ -606,7 +617,8 @@ class Result {
      * @return U Final value.
      */
     template <typename U>
-    [[nodiscard]] auto map_or(U &&value, auto &&conv) -> decltype(auto)
+    [[nodiscard]] constexpr auto map_or(U &&value, auto &&conv)
+        -> decltype(auto)
         requires(
             std::same_as<std::invoke_result_t<decltype(conv), ValueType>, U>)
     {
@@ -624,7 +636,7 @@ class Result {
      * @return U Final value.
      */
     template <typename U>
-    [[nodiscard]] NEXUS_INLINE auto map_or_default(auto &&conv)
+    [[nodiscard]] constexpr NEXUS_INLINE auto map_or_default(auto &&conv)
         -> decltype(auto) {
         return map_or(U(), std::forward<decltype(conv)>(conv));
     }
@@ -634,10 +646,10 @@ class Result {
      *
      * @param func Error convert function.
      * @param conv Value convert function.
-     * @return std::invoke_result_t<decltype(conv), ValueType> Convert function
-     * result.
+     * @return decltype(auto) Convert function result.
      */
-    [[nodiscard]] auto map_or_else(auto &&func, auto &&conv) -> decltype(auto)
+    [[nodiscard]] constexpr auto map_or_else(auto &&func, auto &&conv)
+        -> decltype(auto)
         requires(std::same_as<std::invoke_result_t<decltype(conv), ValueType>,
                               std::invoke_result_t<decltype(func), ErrorType>>)
     {
@@ -645,6 +657,16 @@ class Result {
             return conv(unwrap());
         }
         return func(unwrap_err());
+    }
+
+  private:
+    /**
+     * @brief Get variant base from current result.
+     *
+     * @return VariantType& Variant base object.
+     */
+    [[nodiscard]] NEXUS_INLINE constexpr auto _base() -> VariantType & {
+        return *static_cast<VariantType *>(this);
     }
 };
 
