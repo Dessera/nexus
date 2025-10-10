@@ -13,6 +13,8 @@ test_src = files(
 )
 
 subdir('exec')
+subdir('sync')
+subdir('utils')
 
 test_nexus = executable(
     'test_nexus',

@@ -37,7 +37,7 @@ template <typename R = std::any> class Task {
   private:
     DynFunction          _func;
     std::promise<Result> _res;
-    int8_t               _prio{DEFAULT_PRIO};
+    std::int8_t          _prio{DEFAULT_PRIO};
 
   public:
     /**

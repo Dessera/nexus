@@ -19,3 +19,19 @@
 #else
     #define NEXUS_INLINE __attribute__((always_inline)) inline
 #endif
+
+#define NEXUS_COPY_DELETE(type)                                                \
+    type(const type &other) = delete;                                          \
+    auto operator=(const type &other)->type & = delete
+
+#define NEXUS_COPY_DEFAULT(type)                                               \
+    type(const type &other) = default;                                         \
+    auto operator=(const type &other)->type & = default
+
+#define NEXUS_MOVE_DELETE(type)                                                \
+    type(type &&other) noexcept = delete;                                      \
+    auto operator=(type &&other)->type & = delete
+
+#define NEXUS_MOVE_DEFAULT(type)                                               \
+    type(type &&other) noexcept = default;                                     \
+    auto operator=(type &&other) noexcept -> type & = default
