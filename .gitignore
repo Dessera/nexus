@@ -2,8 +2,8 @@ builddir
 
 .direnv
 .envrc
-result
-result-*
+/result
+/result-*
 
 subprojects/*
 !subprojects/*.wrap
