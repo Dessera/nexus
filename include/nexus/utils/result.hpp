@@ -24,10 +24,11 @@ template <typename T>
 concept IsResult = requires {
     typename T::ValueType;
     typename T::ErrorType;
+    typename T::VariantType;
 };
 
 /**
- * @brief A rust-like result type.
+ * @brief A rust-like result type, do not thread safe.
  *
  * @tparam T Value type.
  * @tparam E Error type.
@@ -35,8 +36,22 @@ concept IsResult = requires {
 template <typename T, typename E>
 class Result : public std::variant<Ok<T>, Err<E>> {
   public:
+    /**
+     * @brief Value type wrapped in result.
+     *
+     */
     using ValueType = Ok<T>::ValueType;
+
+    /**
+     * @brief Error type wrapped in result.
+     *
+     */
     using ErrorType = Err<E>::ErrorType;
+
+    /**
+     * @brief Result variant type.
+     *
+     */
     using VariantType = std::variant<Ok<T>, Err<E>>;
 
     /**
@@ -68,14 +83,8 @@ class Result : public std::variant<Ok<T>, Err<E>> {
          *
          * @return ValueType& Result value.
          */
-        constexpr auto operator*() const -> ValueType & {
-            [[likely]] if (auto *value =
-                               std::get_if<Ok<ValueType>>(&_result->_base());
-                           value != nullptr) {
-                return value->value();
-            }
-
-            throw Error(Error::Unwrap, "Result cannot be dereferenced");
+        constexpr NEXUS_INLINE auto operator*() const -> ValueType & {
+            return _result->unwrap_ref();
         }
 
         /**
@@ -125,11 +134,11 @@ class Result : public std::variant<Ok<T>, Err<E>> {
         Result *_result{nullptr};
 
       public:
-        ErrorIterator(Result &result)
+        constexpr ErrorIterator(Result &result)
             : _result(result.is_ok() ? nullptr : &result) {}
 
-        ErrorIterator() = default;
-        ~ErrorIterator() = default;
+        constexpr ErrorIterator() = default;
+        constexpr ~ErrorIterator() = default;
 
         NEXUS_COPY_DEFAULT(ErrorIterator);
         NEXUS_MOVE_DEFAULT(ErrorIterator);
@@ -140,14 +149,8 @@ class Result : public std::variant<Ok<T>, Err<E>> {
          *
          * @return ErrorIterator& Result error.
          */
-        auto operator*() const -> ErrorType & {
-            [[likely]] if (auto *value =
-                               std::get_if<Err<ErrorType>>(&_result->_base());
-                           value != nullptr) {
-                return value->error();
-            }
-
-            throw Error(Error::Unwrap, "Result cannot be dereferenced");
+        constexpr NEXUS_INLINE auto operator*() const -> ErrorType & {
+            return _result->unwrap_err_ref();
         }
 
         /**
@@ -155,7 +158,7 @@ class Result : public std::variant<Ok<T>, Err<E>> {
          *
          * @return ErrorIterator& End iterator.
          */
-        auto operator++() -> ErrorIterator & {
+        constexpr auto operator++() -> ErrorIterator & {
             _result = nullptr;
             return *this;
         }
@@ -165,7 +168,7 @@ class Result : public std::variant<Ok<T>, Err<E>> {
          *
          * @return ErrorIterator Previous iterator.
          */
-        auto operator++(int) -> ErrorIterator {
+        constexpr auto operator++(int) -> ErrorIterator {
             auto tmp = *this;
             ++*this;
             return tmp;
@@ -178,7 +181,7 @@ class Result : public std::variant<Ok<T>, Err<E>> {
          * @return true Iterators have the same result pointer.
          * @return false Iterators don't have the same result pointer.
          */
-        auto operator==(const ErrorIterator &other) const -> bool {
+        constexpr auto operator==(const ErrorIterator &other) const -> bool {
             return _result == other._result;
         }
     };
@@ -192,9 +195,9 @@ class Result : public std::variant<Ok<T>, Err<E>> {
         Result *_result;
 
       public:
-        ErrorEnumerator(Result &result) : _result(&result) {}
+        constexpr explicit ErrorEnumerator(Result &result) : _result(&result) {}
 
-        ~ErrorEnumerator() = default;
+        constexpr ~ErrorEnumerator() = default;
 
         NEXUS_COPY_DEFAULT(ErrorEnumerator);
         NEXUS_MOVE_DEFAULT(ErrorEnumerator);
@@ -204,7 +207,7 @@ class Result : public std::variant<Ok<T>, Err<E>> {
          *
          * @return ErrorIterator Begin iterator.
          */
-        [[nodiscard]] NEXUS_INLINE auto begin() -> ErrorIterator {
+        [[nodiscard]] constexpr NEXUS_INLINE auto begin() -> ErrorIterator {
             return _result->ebegin();
         }
 
@@ -213,7 +216,7 @@ class Result : public std::variant<Ok<T>, Err<E>> {
          *
          * @return ErrorIterator End iterator.
          */
-        [[nodiscard]] NEXUS_INLINE auto end() -> ErrorIterator {
+        [[nodiscard]] constexpr NEXUS_INLINE auto end() -> ErrorIterator {
             return _result->eend();
         }
     };
@@ -274,8 +277,8 @@ class Result : public std::variant<Ok<T>, Err<E>> {
     }
 
     /**
-     * @brief Return res if result is not error, otherwise return current
-     * error.
+     * @brief Return new result if current result is not an error, otherwise
+     * return current error.
      *
      * @tparam U Another value type.
      * @param res Another result.
@@ -290,11 +293,11 @@ class Result : public std::variant<Ok<T>, Err<E>> {
     }
 
     /**
-     * @brief Return conv result if result is not error, otherwise return
-     * current error.
+     * @brief Return conv result if current result is not an error, otherwise
+     * return current error.
      *
-     * @param conv Result converter.
-     * @return Result<U, E> Final result.
+     * @param conv Result convert function.
+     * @return decltype(auto) Final result.
      */
     [[nodiscard]] constexpr auto both_and(auto &&conv) -> decltype(auto)
         requires(IsResult<std::invoke_result_t<decltype(conv), ValueType>>)
@@ -310,7 +313,8 @@ class Result : public std::variant<Ok<T>, Err<E>> {
     }
 
     /**
-     * @brief Return value if result is not error, otherwise return new result.
+     * @brief Return new result if current result is an error, otherwise return
+     * current value.
      *
      * @tparam F Another error type.
      * @param res Another result.
@@ -325,10 +329,10 @@ class Result : public std::variant<Ok<T>, Err<E>> {
     }
 
     /**
-     * @brief Return result value if result is not error, otherwise return
-     * converted result.
+     * @brief Return conv result if result is an error, otherwise return current
+     * value.
      *
-     * @param conv Result converter.
+     * @param conv Result convert function.
      * @return decltype(auto) Final result.
      */
     [[nodiscard]] constexpr auto either_or(auto &&conv) -> decltype(auto)
@@ -488,14 +492,36 @@ class Result : public std::variant<Ok<T>, Err<E>> {
      * @brief Get and consume the result, throw if the result is an error.
      *
      * @return ValueType Result value.
+     * @throw Error Unwrap error.
      */
-    [[nodiscard]] constexpr auto unwrap() -> ValueType {
+    [[nodiscard]] constexpr NEXUS_INLINE auto unwrap() -> ValueType {
+        return std::move(unwrap_ref());
+    }
+
+    /**
+     * @brief Get the result value reference, throw if the result is an error.
+     *
+     * @return ValueType& Result value.
+     * @throw Error Unwrap error.
+     */
+    [[nodiscard]] constexpr NEXUS_INLINE auto unwrap_ref() -> ValueType & {
+        return const_cast<ValueType &>(
+            static_cast<const Result *>(this)->unwrap_ref());
+    }
+
+    /**
+     * @brief Get the result value reference, throw if the result is an error.
+     *
+     * @return const ValueType& Result value.
+     * @throw Error Unwrap error.
+     */
+    [[nodiscard]] constexpr auto unwrap_ref() const -> const ValueType & {
         return std::visit(
-            [](auto &&result) -> ValueType {
+            [](auto &&result) -> const ValueType & {
                 using RealVariantType = std::decay_t<decltype(result)>;
 
                 if constexpr (IsOk<RealVariantType>) {
-                    return std::move(result.value());
+                    return result.value();
                 } else if constexpr (IsErr<RealVariantType>) {
                     throw Error(Error::Unwrap, "Result is an error ({})",
                                 to_formattable(result.error()));
@@ -559,12 +585,31 @@ class Result : public std::variant<Ok<T>, Err<E>> {
      * @return ErrorType Result error.
      */
     [[nodiscard]] constexpr auto unwrap_err() -> ErrorType {
+        return std::move(unwrap_err_ref());
+    }
+
+    /**
+     * @brief Get and consume the result, throw if the result is not an error.
+     *
+     * @return ErrorType& Result error.
+     */
+    [[nodiscard]] constexpr auto unwrap_err_ref() -> ErrorType & {
+        return const_cast<ErrorType &>(
+            static_cast<const Result *>(this)->unwrap_err_ref());
+    }
+
+    /**
+     * @brief Get and consume the result, throw if the result is not an error.
+     *
+     * @return const ErrorType& Result error.
+     */
+    [[nodiscard]] constexpr auto unwrap_err_ref() const -> const ErrorType & {
         return std::visit(
-            [](auto &&result) -> ErrorType {
+            [](auto &&result) -> const ErrorType & {
                 using RealVariantType = std::decay_t<decltype(result)>;
 
                 if constexpr (IsErr<RealVariantType>) {
-                    return std::move(result.error());
+                    return result.error();
                 } else if constexpr (IsOk<RealVariantType>) {
                     throw Error(Error::Unwrap, "Result is not an error ({})",
                                 to_formattable(result.value()));
@@ -631,14 +676,16 @@ class Result : public std::variant<Ok<T>, Err<E>> {
     /**
      * @brief Convert value if exists, or return the default one.
      *
-     * @tparam U New value type.
      * @param conv Convert function.
-     * @return U Final value.
+     * @return decltype(auto) Final value.
      */
-    template <typename U>
-    [[nodiscard]] constexpr NEXUS_INLINE auto map_or_default(auto &&conv)
-        -> decltype(auto) {
-        return map_or(U(), std::forward<decltype(conv)>(conv));
+    [[nodiscard]] NEXUS_INLINE constexpr auto map_or_default(auto &&conv)
+        -> decltype(auto)
+        requires(std::is_invocable_v<decltype(conv), ValueType>)
+    {
+        using RealValueType = std::invoke_result_t<decltype(conv), ValueType>;
+
+        return map_or(RealValueType(), std::forward<decltype(conv)>(conv));
     }
 
     /**
@@ -667,6 +714,16 @@ class Result : public std::variant<Ok<T>, Err<E>> {
      */
     [[nodiscard]] NEXUS_INLINE constexpr auto _base() -> VariantType & {
         return *static_cast<VariantType *>(this);
+    }
+
+    /**
+     * @brief Get variant base from current result.
+     *
+     * @return const VariantType& Variant base object.
+     */
+    [[nodiscard]] NEXUS_INLINE constexpr auto _base() const
+        -> const VariantType & {
+        return *static_cast<const VariantType *>(this);
     }
 };
 

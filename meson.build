@@ -5,7 +5,11 @@ project(
     default_options: ['warning_level=3', 'cpp_std=gnu++20'],
 )
 
-gtest_dep = dependency('gtest_main', required: false)
+gtest_dep = dependency(
+    'gtest_main',
+    required: false,
+    fallback: ['gtest', 'gtest_main_dep'],
+)
 
 lib_deps = []
 lib_args = [
