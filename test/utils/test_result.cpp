@@ -1,32 +1,23 @@
 #include "nexus/error.hpp"
 #include "nexus/utils/result.hpp"
-#include "nexus/utils/result/variant.hpp"
 
 #include <gtest/gtest.h>
-#include <utility>
+#include <string_view>
 
 namespace {
 
-using nexus::Err;
 using nexus::Error;
-using nexus::Ok;
 using nexus::Result;
 
-auto make_value(int value) -> Result<int, Error> { return Ok(value); }
-
-auto make_error() -> Result<int, Error> {
-    return Err(Error(Error::Unwrap, "Unknown error"));
-}
-
 TEST(Result, Iterator) {
-    auto res = make_value(1);
-    int  flag = 0;
+    Result<int, const char *> res = Ok(1);
+    int                       flag = 0;
     for ([[maybe_unused]] auto &value : res) {
         ++flag;
     }
     EXPECT_EQ(flag, 1);
 
-    res = make_error();
+    res = Err("Unexpected");
     flag = 0;
     for ([[maybe_unused]] auto &err : res.error_enumerator()) {
         ++flag;
@@ -34,116 +25,160 @@ TEST(Result, Iterator) {
     EXPECT_EQ(flag, 1);
 }
 
-TEST(Result, Checkers) {
-    auto res = make_value(1);
-    EXPECT_TRUE(res.is_ok());
-    EXPECT_FALSE(res.is_err());
-    EXPECT_FALSE(res.is_ok_and([](auto && /*value*/) { return false; }));
-    EXPECT_FALSE(res.is_err_and([](auto && /*err*/) { return true; }));
-
-    res = make_error();
-    EXPECT_FALSE(res.is_ok());
-    EXPECT_TRUE(res.is_err());
-    EXPECT_FALSE(res.is_ok_and([](auto && /*value*/) { return true; }));
-    EXPECT_FALSE(res.is_err_and([](auto && /*err*/) { return false; }));
-}
-
-TEST(Result, Expect) {
-    auto res = make_value(1);
-    EXPECT_NO_THROW([[maybe_unused]] auto value = res.expect("Unexpected"));
-
-    res = make_value(1);
-    EXPECT_THROW([[maybe_unused]] auto value = res.expect_err("Unexpected"),
-                 Error);
-
-    res = make_error();
-    EXPECT_THROW([[maybe_unused]] auto value = res.expect("Unexpected"), Error);
-
-    res = make_error();
-    EXPECT_NO_THROW([[maybe_unused]] auto value = res.expect_err("Unexpected"));
-}
-
-TEST(Result, Unwrap) {
-    auto res = make_value(1);
-    EXPECT_EQ(res.unwrap(), 1);
-
-    res = make_value(1);
-    EXPECT_THROW([[maybe_unused]] auto value = res.unwrap_err(), Error);
-
-    res = make_error();
-    EXPECT_EQ(res.unwrap_err().code(), Error::Unwrap);
-
-    res = make_error();
-    EXPECT_THROW([[maybe_unused]] auto value = res.unwrap(), Error);
-
-    res = make_error();
-    EXPECT_EQ(res.unwrap_or(2), 2);
-
-    res = make_error();
-    EXPECT_EQ(res.unwrap_or_default(), 0);
-}
-
 TEST(Result, Merge) {
-    auto res = make_value(1).both(make_value(2));
-    EXPECT_EQ(res.unwrap(), 2);
+    auto get_ok = [](auto &&) -> Result<int, const char *> { return Ok(2); };
 
-    res = make_error().both(make_value(1));
-    EXPECT_THROW([[maybe_unused]] auto value = res.unwrap(), Error);
+    Result<int, const char *> res1 = Ok(1);
+    Result<int, const char *> res2 = Ok(2);
+    EXPECT_EQ(res1.both(std::move(res2)).unwrap(), 2); // NOLINT
 
-    res = make_value(1).both_and([](auto &&) { return make_value(2); });
-    EXPECT_EQ(res.unwrap(), 2);
+    res1 = Err("Unexpected");
+    res2 = Ok(2);
+    EXPECT_EQ(res1.both(std::move(res2)).unwrap_err(), // NOLINT
+              std::string_view("Unexpected"));
 
-    res = make_error().both_and([](auto &&) { return make_value(1); });
-    EXPECT_THROW([[maybe_unused]] auto value = res.unwrap(), Error);
+    res1 = Ok(1);
+    res2 = Ok(2);
+    EXPECT_EQ(res1.either(std::move(res2)).unwrap(), // NOLINT
+              1);
 
-    res = make_value(1).either(make_value(2));
-    EXPECT_EQ(res.unwrap(), 1);
+    res1 = Err("Unexpected");
+    res2 = Ok(2);
+    EXPECT_EQ(res1.either(std::move(res2)).unwrap(), // NOLINT
+              2);
 
-    res = make_error().either(make_value(1));
-    EXPECT_EQ(res.unwrap(), 1);
+    res1 = Ok(1);
+    EXPECT_EQ(res1.both_and(get_ok).unwrap(), 2);
 
-    res = make_value(1).either_or([](auto &&) { return make_value(2); });
-    EXPECT_EQ(res.unwrap(), 1);
+    res1 = Err("Unexpected");
+    EXPECT_EQ(res1.both_and(get_ok).unwrap_err(),
+              std::string_view("Unexpected"));
 
-    res = make_error().either_or([](auto &&) { return make_value(1); });
-    EXPECT_EQ(res.unwrap(), 1);
+    res1 = Ok(1);
+    EXPECT_EQ(res1.either_or(get_ok).unwrap(), 1);
+
+    res1 = Err("Unexpected");
+    EXPECT_EQ(res1.either_or(get_ok).unwrap(), 2);
 }
 
 TEST(Result, Flattern) {
-    auto res_ok = Result<Result<int, Error>, Error>(Ok(make_value(1)));
-    auto res_flat = res_ok.flattern();
-
-    EXPECT_EQ(res_flat.unwrap(), 1);
+    Result<Result<int, const char *>, const char *> res =
+        Ok(Result<int, const char *>(Ok(1)));
+    EXPECT_EQ(res.flattern().unwrap(), 1);
 }
 
 TEST(Result, Inspect) {
-    auto res = make_value(1);
-    int  flag = 0;
+    Result<int, const char *> res = Ok(1);
+    int                       flag = 0;
     res = res.inspect([&](const int & /*value*/) { ++flag; })
               .inspect_err([&](const auto & /*err*/) { ++flag; });
     EXPECT_EQ(flag, 1);
 
-    res = make_error();
+    res = Err("Unexpected");
     flag = 0;
     res = res.inspect([&](const int & /*value*/) { ++flag; })
               .inspect_err([&](const auto & /*err*/) { ++flag; });
     EXPECT_EQ(flag, 1);
 }
 
-TEST(Result, Map) {
-    auto res = make_value(1).map([](int value) { return value * 2; });
-    EXPECT_EQ(res.unwrap(), 2);
+TEST(Result, Checkers) {
+    Result<int, const char *> res = Ok(1);
+    EXPECT_TRUE(res.is_ok());
+    EXPECT_FALSE(res.is_err());
+    EXPECT_FALSE(res.is_ok_and([](auto && /*value*/) { return false; }));
 
-    res = make_error().map_err([](Error &&err) { return std::move(err); });
+    res = Ok(1);
+    EXPECT_FALSE(res.is_err_and([](auto && /*err*/) { return true; }));
+
+    res = Err("Unexpected");
+    EXPECT_FALSE(res.is_ok());
+    EXPECT_TRUE(res.is_err());
+    EXPECT_FALSE(res.is_ok_and([](auto && /*value*/) { return true; }));
+
+    res = Err("Unexpected");
+    EXPECT_FALSE(res.is_err_and([](auto && /*err*/) { return false; }));
+}
+
+TEST(Result, Expect) {
+    Result<int, const char *> res = Ok(1);
+    EXPECT_NO_THROW([[maybe_unused]] auto value = res.expect("Unexpected"));
+
+    res = Ok(1);
+    EXPECT_THROW([[maybe_unused]] auto value = res.expect_err("Unexpected"),
+                 Error);
+
+    res = Err("Unexpected");
+    EXPECT_THROW([[maybe_unused]] auto value = res.expect("Unexpected"), Error);
+
+    res = Err("Unexpected");
+    EXPECT_NO_THROW([[maybe_unused]] auto value = res.expect_err("Unexpected"));
+}
+
+TEST(Result, Unwrap) {
+    Result<int, const char *> res = Ok(1);
+    EXPECT_EQ(res.unwrap(), 1);
+
+    res = Ok(1);
+    EXPECT_THROW([[maybe_unused]] auto value = res.unwrap_err(), Error);
+
+    res = Err("Unexpected");
+    EXPECT_EQ(std::string_view(res.unwrap_err()), "Unexpected");
+
+    res = Err("Unexpected");
     EXPECT_THROW([[maybe_unused]] auto value = res.unwrap(), Error);
 
-    auto res_value =
-        make_error().map_or(3, [](int value) { return value * 2; });
-    EXPECT_EQ(res_value, 3);
+    res = Ok(1);
+    EXPECT_EQ(res.unwrap_or(2), 1);
 
-    res_value = make_error().map_or_else([](auto && /*err*/) { return 3; },
-                                         [](int value) { return value * 2; });
-    EXPECT_EQ(res_value, 3);
+    res = Err("Unexpected");
+    EXPECT_EQ(res.unwrap_or(2), 2);
+
+    res = Ok(1);
+    EXPECT_EQ(res.unwrap_or_default(), 1);
+
+    res = Err("Unexpected");
+    EXPECT_EQ(res.unwrap_or_default(), 0);
+}
+
+TEST(Result, Map) {
+    Result<int, const char *> res = Ok(1);
+
+    auto value = res.map([](int value) { return value * 2L; })
+                     .map_err([](auto && /*err*/) { return "Expected"; })
+                     .unwrap();
+    EXPECT_EQ(value, 2);
+
+    res = Err("Unexpected");
+    const auto *err = res.map([](int value) { return value * 2L; })
+                          .map_err([](auto && /*err*/) { return "Expected"; })
+                          .unwrap_err();
+    EXPECT_EQ(std::string_view(err), "Expected");
+
+    res = Ok(1);
+    value = res.map_or(4, [](int value) { return value * 2L; });
+    EXPECT_EQ(value, 2);
+
+    res = Err("Unexpected");
+    value = res.map_or(4, [](int value) { return value * 2L; });
+    EXPECT_EQ(value, 4);
+
+    res = Ok(1);
+    value = res.map_or_default([](int value) { return value * 2L; });
+    EXPECT_EQ(value, 2);
+
+    res = Err("Unexpected");
+    value = res.map_or_default([](int value) { return value * 2L; });
+    EXPECT_EQ(value, 0);
+
+    res = Ok(1);
+    value = res.map_or_else([](auto && /*err*/) { return 4; },
+                            [](int value) { return value * 2L; });
+    EXPECT_EQ(value, 2);
+
+    res = Err("Unexpected");
+    value = res.map_or_else([](auto && /*err*/) { return 4; },
+                            [](int value) { return value * 2L; });
+    EXPECT_EQ(value, 4);
 }
 
 } // namespace

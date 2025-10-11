@@ -3,7 +3,6 @@
 #include "nexus/common.hpp"
 #include "nexus/error.hpp"
 #include "nexus/utils/format.hpp"
-#include "nexus/utils/result/variant.hpp"
 
 #include <concepts>
 #include <cstddef>
@@ -15,7 +14,115 @@
 namespace nexus {
 
 /**
- * @brief Check if type is a result
+ * @brief Check if type is a Ok.
+ *
+ * @tparam T Target type.
+ * @note The concept only checks types defined in target.
+ */
+template <typename T>
+concept IsOk = requires { typename T::ValueType; };
+
+/**
+ * @brief Result value type wrapper.
+ *
+ * @tparam T Value type.
+ */
+template <typename T> struct Ok {
+  public:
+    using ValueType = std::decay_t<T>;
+
+  private:
+    ValueType _value;
+
+  public:
+    constexpr explicit Ok(ValueType &&value) : _value(std::move(value)) {}
+    constexpr explicit Ok(const ValueType &value) : _value(value) {}
+
+    constexpr ~Ok() = default;
+
+    NEXUS_COPY_DEFAULT(Ok);
+    NEXUS_MOVE_DEFAULT(Ok);
+
+    Ok() = delete;
+
+    /**
+     * @brief Get value.
+     *
+     * @return ValueType& Value reference.
+     */
+    [[nodiscard]] NEXUS_INLINE constexpr auto value() -> ValueType & {
+        return _value;
+    }
+
+    /**
+     * @brief Get value.
+     *
+     * @return const ValueType& Value reference.
+     */
+    [[nodiscard]] NEXUS_INLINE constexpr auto value() const
+        -> const ValueType & {
+        return _value;
+    }
+};
+
+template <typename T> Ok(T value) -> Ok<T>;
+
+/**
+ * @brief Check if type is a Err.
+ *
+ * @tparam T Target type.
+ * @note The concept only checks types defined in target.
+ */
+template <typename T>
+concept IsErr = requires { typename T::ErrorType; };
+
+/**
+ * @brief Result error type wrapper.
+ *
+ * @tparam E Error type.
+ */
+template <typename E> struct Err {
+  public:
+    using ErrorType = std::decay_t<E>;
+
+  private:
+    ErrorType _error;
+
+  public:
+    constexpr explicit Err(ErrorType &&error) : _error(std::move(error)) {}
+    constexpr explicit Err(const ErrorType &error) : _error(error) {}
+
+    constexpr ~Err() = default;
+
+    NEXUS_COPY_DEFAULT(Err);
+    NEXUS_MOVE_DEFAULT(Err);
+
+    Err() = delete;
+
+    /**
+     * @brief Get error.
+     *
+     * @return ErrorType& Error reference.
+     */
+    [[nodiscard]] NEXUS_INLINE constexpr auto error() -> ErrorType & {
+        return _error;
+    }
+
+    /**
+     * @brief Get error.
+     *
+     * @return const ErrorType& Error reference.
+     */
+    [[nodiscard]] NEXUS_INLINE constexpr auto error() const
+        -> const ErrorType & {
+        return _error;
+    }
+};
+
+template <typename E> Err(E err) -> Err<E>;
+
+/**
+ * @brief Check if type is a result.
  *
  * @tparam T Target type.
  * @note The concept only checks types defined in target.
@@ -83,7 +190,8 @@ class Result : public std::variant<Ok<T>, Err<E>> {
          *
          * @return ValueType& Result value.
          */
-        constexpr NEXUS_INLINE auto operator*() const -> ValueType & {
+        [[nodiscard]] NEXUS_INLINE constexpr auto operator*() const
+            -> ValueType & {
             return _result->unwrap_ref();
         }
 
@@ -115,7 +223,8 @@ class Result : public std::variant<Ok<T>, Err<E>> {
          * @return true Iterators have the same result pointer.
          * @return false Iterators don't have the same result pointer.
          */
-        constexpr auto operator==(const Iterator &other) const -> bool {
+        [[nodiscard]] NEXUS_INLINE constexpr auto
+        operator==(const Iterator &other) const -> bool {
             return _result == other._result;
         }
     };
@@ -147,9 +256,10 @@ class Result : public std::variant<Ok<T>, Err<E>> {
          * @brief Unwrap the error (to a reference, do not consuming the
          * result).
          *
-         * @return ErrorIterator& Result error.
+         * @return ErrorType& Result error.
          */
-        constexpr NEXUS_INLINE auto operator*() const -> ErrorType & {
+        [[nodiscard]] NEXUS_INLINE constexpr auto operator*() const
+            -> ErrorType & {
             return _result->unwrap_err_ref();
         }
 
@@ -181,7 +291,8 @@ class Result : public std::variant<Ok<T>, Err<E>> {
          * @return true Iterators have the same result pointer.
          * @return false Iterators don't have the same result pointer.
          */
-        constexpr auto operator==(const ErrorIterator &other) const -> bool {
+        [[nodiscard]] NEXUS_INLINE constexpr auto
+        operator==(const ErrorIterator &other) const -> bool {
             return _result == other._result;
         }
     };
@@ -202,12 +313,14 @@ class Result : public std::variant<Ok<T>, Err<E>> {
         NEXUS_COPY_DEFAULT(ErrorEnumerator);
         NEXUS_MOVE_DEFAULT(ErrorEnumerator);
 
+        ErrorEnumerator() = delete;
+
         /**
          * @brief Get the begin iterator.
          *
          * @return ErrorIterator Begin iterator.
          */
-        [[nodiscard]] constexpr NEXUS_INLINE auto begin() -> ErrorIterator {
+        [[nodiscard]] NEXUS_INLINE constexpr auto begin() -> ErrorIterator {
             return _result->ebegin();
         }
 
@@ -216,26 +329,30 @@ class Result : public std::variant<Ok<T>, Err<E>> {
          *
          * @return ErrorIterator End iterator.
          */
-        [[nodiscard]] constexpr NEXUS_INLINE auto end() -> ErrorIterator {
+        [[nodiscard]] NEXUS_INLINE constexpr auto end() -> ErrorIterator {
             return _result->eend();
         }
     };
 
-    template <typename... Args>
-    constexpr Result(Args &&...args)
-        : VariantType(std::forward<Args>(args)...) {}
+    constexpr Result(Ok<ValueType> &&value) : VariantType(std::move(value)) {}
+    constexpr Result(const Ok<ValueType> &value) : VariantType(value) {}
+
+    constexpr Result(Err<ErrorType> &&err) : VariantType(std::move(err)) {}
+    constexpr Result(const Err<ErrorType> &err) : VariantType(err) {}
 
     constexpr ~Result() = default;
 
     NEXUS_COPY_DEFAULT(Result);
     NEXUS_MOVE_DEFAULT(Result);
 
+    Result() = delete;
+
     /**
      * @brief Get the begin iterator.
      *
      * @return Iterator Begin iterator.
      */
-    [[nodiscard]] constexpr NEXUS_INLINE auto begin() -> Iterator {
+    [[nodiscard]] NEXUS_INLINE constexpr auto begin() -> Iterator {
         return Iterator(*this);
     }
 
@@ -244,7 +361,7 @@ class Result : public std::variant<Ok<T>, Err<E>> {
      *
      * @return Iterator End iterator.
      */
-    [[nodiscard]] constexpr NEXUS_INLINE auto end() -> Iterator {
+    [[nodiscard]] NEXUS_INLINE constexpr auto end() -> Iterator {
         return Iterator();
     }
 
@@ -253,7 +370,7 @@ class Result : public std::variant<Ok<T>, Err<E>> {
      *
      * @return ErrorIterator Begin error iterator.
      */
-    [[nodiscard]] constexpr NEXUS_INLINE auto ebegin() -> ErrorIterator {
+    [[nodiscard]] NEXUS_INLINE constexpr auto ebegin() -> ErrorIterator {
         return ErrorIterator(*this);
     }
 
@@ -262,7 +379,7 @@ class Result : public std::variant<Ok<T>, Err<E>> {
      *
      * @return ErrorIterator End error iterator.
      */
-    [[nodiscard]] constexpr NEXUS_INLINE auto eend() -> ErrorIterator {
+    [[nodiscard]] NEXUS_INLINE constexpr auto eend() -> ErrorIterator {
         return ErrorIterator();
     }
 
@@ -271,98 +388,143 @@ class Result : public std::variant<Ok<T>, Err<E>> {
      *
      * @return ErrorEnumerator error enumerator.
      */
-    [[nodiscard]] constexpr NEXUS_INLINE auto error_enumerator()
+    [[nodiscard]] NEXUS_INLINE constexpr auto error_enumerator()
         -> ErrorEnumerator {
         return ErrorEnumerator(*this);
     }
 
     /**
-     * @brief Return new result if current result is not an error, otherwise
+     * @brief  Return new result if current result is not an error, otherwise
      * return current error.
      *
-     * @tparam U Another value type.
+     * @tparam Tn Another value type.
      * @param res Another result.
-     * @return Result<U, E> Final result.
+     * @return Result<Tn, E> Final result.
      */
-    template <typename U>
-    [[nodiscard]] constexpr auto both(Result<U, E> &&res) -> Result<U, E> {
-        if (is_err()) {
-            return Err(unwrap_err());
-        }
-        return std::move(res);
+    template <typename Tn>
+    [[nodiscard]] constexpr auto both(Result<Tn, E> &&res) -> Result<Tn, E> {
+        return std::visit(
+            [&](auto &&result) -> Result<Tn, E> {
+                using VarType = std::decay_t<decltype(result)>;
+
+                if constexpr (IsErr<VarType>) {
+                    return Err(std::move(result.error()));
+                } else if constexpr (IsOk<VarType>) {
+                    return std::move(res);
+                } else {
+                    static_assert(false,
+                                  "Result has an unexpected variant type");
+                }
+            },
+            _base());
     }
 
     /**
      * @brief Return conv result if current result is not an error, otherwise
      * return current error.
      *
-     * @param conv Result convert function.
-     * @return decltype(auto) Final result.
+     * @tparam F Value convert function type.
+     * @tparam Ret Final result type.
      */
-    [[nodiscard]] constexpr auto both_and(auto &&conv) -> decltype(auto)
-        requires(IsResult<std::invoke_result_t<decltype(conv), ValueType>>)
+    template <typename F, typename Ret = std::invoke_result_t<F, ValueType>>
+    [[nodiscard]] constexpr auto both_and(F &&conv) -> Ret
+        requires(IsResult<Ret>)
     {
-        using RealValueType =
-            std::invoke_result_t<decltype(conv), ValueType>::ValueType;
-        using FinalResultType = Result<RealValueType, E>;
+        return std::visit(
+            [&](auto &&result) -> Ret {
+                using VarType = std::decay_t<decltype(result)>;
 
-        if (is_err()) {
-            return FinalResultType(Err(unwrap_err()));
-        }
-        return conv(unwrap());
+                if constexpr (IsErr<VarType>) {
+                    return Err(std::move(result.error()));
+                } else if constexpr (IsOk<VarType>) {
+                    return std::forward<F>(conv)(std::move(result.value()));
+                } else {
+                    static_assert(false,
+                                  "Result has an unexpected variant type");
+                }
+            },
+            _base());
     }
 
     /**
      * @brief Return new result if current result is an error, otherwise return
      * current value.
      *
-     * @tparam F Another error type.
+     * @tparam En Another error type.
      * @param res Another result.
-     * @return Result<T, F> Final result.
+     * @return Result<T, En> Final result.
      */
-    template <typename F>
-    [[nodiscard]] constexpr auto either(Result<T, F> &&res) -> Result<T, F> {
-        if (is_err()) {
-            return std::move(res);
-        }
-        return Ok(unwrap());
+    template <typename En>
+    [[nodiscard]] constexpr auto either(Result<T, En> &&res) -> Result<T, En> {
+        return std::visit(
+            [&](auto &&result) -> Result<T, En> {
+                using VarType = std::decay_t<decltype(result)>;
+
+                if constexpr (IsErr<VarType>) {
+                    return std::move(res);
+                } else if constexpr (IsOk<VarType>) {
+                    return Ok(std::move(result.value()));
+                } else {
+                    static_assert(false,
+                                  "Result has an unexpected variant type");
+                }
+            },
+            _base());
     }
 
     /**
      * @brief Return conv result if result is an error, otherwise return current
      * value.
      *
-     * @param conv Result convert function.
-     * @return decltype(auto) Final result.
+     * @tparam F Error convert function type.
+     * @tparam Ret Final result type.
      */
-    [[nodiscard]] constexpr auto either_or(auto &&conv) -> decltype(auto)
-        requires(IsResult<std::invoke_result_t<decltype(conv), ErrorType>>)
+    template <typename F, typename Ret = std::invoke_result_t<F, ErrorType>>
+    [[nodiscard]] constexpr auto either_or(F &&conv) -> Ret
+        requires(IsResult<Ret>)
     {
-        using RealErrorType =
-            std::invoke_result_t<decltype(conv), ErrorType>::ErrorType;
-        using FinalResultType = Result<T, RealErrorType>;
+        return std::visit(
+            [&](auto &&result) -> Ret {
+                using VarType = std::decay_t<decltype(result)>;
 
-        if (is_err()) {
-            return conv(unwrap_err());
-        }
-        return FinalResultType(Ok(unwrap()));
+                if constexpr (IsErr<VarType>) {
+                    return std::forward<F>(conv)(std::move(result.error()));
+                } else if constexpr (IsOk<VarType>) {
+                    return Ok(std::move(result.value()));
+                } else {
+                    static_assert(false,
+                                  "Result has an unexpected variant type");
+                }
+            },
+            _base());
     }
 
     /**
      * @brief Convert Result<Result<T, E>, E> to Result<T, E>.
      *
-     * @return decltype(auto) Final result.
+     * @tparam Ret Final result type.
+     * @tparam Tn Final result value type.
+     * @tparam En Final result error type.
      */
-    [[nodiscard]] constexpr auto flattern() -> decltype(auto)
-        requires(IsResult<ValueType> &&
-                 std::is_same_v<typename ValueType::ErrorType, ErrorType>)
+    template <typename Ret = ValueType, typename Tn = Ret::ValueType,
+              typename En = Ret::ErrorType>
+    [[nodiscard]] constexpr auto flattern() -> Ret
+        requires(std::same_as<Ret, Result<Tn, En>>)
     {
-        using FinalResultType = Result<typename ValueType::ValueType, E>;
+        return std::visit(
+            [](auto &&result) -> Ret {
+                using VarType = std::decay_t<decltype(result)>;
 
-        if (is_err()) {
-            return FinalResultType(Err(unwrap_err()));
-        }
-        return unwrap();
+                if constexpr (IsErr<VarType>) {
+                    return Err(std::move(result.error()));
+                } else if constexpr (IsOk<VarType>) {
+                    return std::move(result.value());
+                } else {
+                    static_assert(false,
+                                  "Result has an unexpected variant type");
+                }
+            },
+            _base());
     }
 
     /**
@@ -399,7 +561,7 @@ class Result : public std::variant<Ok<T>, Err<E>> {
      * @return true Result is error.
      * @return false Result is not error.
      */
-    [[nodiscard]] constexpr NEXUS_INLINE auto is_err() -> bool {
+    [[nodiscard]] NEXUS_INLINE constexpr auto is_err() const -> bool {
         return std::get_if<Err<ErrorType>>(&_base()) != nullptr;
     }
 
@@ -422,7 +584,7 @@ class Result : public std::variant<Ok<T>, Err<E>> {
      * @return true Result is value.
      * @return false Result is not value.
      */
-    [[nodiscard]] constexpr NEXUS_INLINE auto is_ok() -> bool {
+    [[nodiscard]] NEXUS_INLINE constexpr auto is_ok() const -> bool {
         return std::get_if<Ok<ValueType>>(&_base()) != nullptr;
     }
 
@@ -445,12 +607,23 @@ class Result : public std::variant<Ok<T>, Err<E>> {
      *
      * @param msg Error message when throw.
      * @return ValueType Result value.
+     * @throw Error Unwrap error when result is an error.
      */
     [[nodiscard]] constexpr auto expect(std::string &&msg) -> ValueType {
-        if (is_ok()) {
-            return unwrap();
-        }
-        throw Error(Error::Unwrap, std::move(msg));
+        return std::visit(
+            [&](auto &&result) -> ValueType {
+                using VarType = std::decay_t<decltype(result)>;
+
+                if constexpr (IsErr<VarType>) {
+                    throw Error(Error::Unwrap, std::move(msg));
+                } else if constexpr (IsOk<VarType>) {
+                    return std::move(result.value());
+                } else {
+                    static_assert(false,
+                                  "Result has an unexpected variant type");
+                }
+            },
+            _base());
     }
 
     /**
@@ -458,8 +631,9 @@ class Result : public std::variant<Ok<T>, Err<E>> {
      *
      * @param msg Error message when throw.
      * @return ValueType Result value.
+     * @throw Error Unwrap error when result is an error.
      */
-    [[nodiscard]] constexpr NEXUS_INLINE auto expect(const std::string &msg)
+    [[nodiscard]] NEXUS_INLINE constexpr auto expect(const std::string &msg)
         -> ValueType {
         expect(std::string(msg));
     }
@@ -469,12 +643,23 @@ class Result : public std::variant<Ok<T>, Err<E>> {
      *
      * @param msg Error message when throw.
      * @return ErrorType Result error.
+     * @throw Error Unwrap error when result is not an error.
      */
     [[nodiscard]] constexpr auto expect_err(std::string &&msg) -> ErrorType {
-        if (is_err()) {
-            return unwrap_err();
-        }
-        throw Error(Error::Unwrap, std::move(msg));
+        return std::visit(
+            [&](auto &&result) -> ErrorType {
+                using VarType = std::decay_t<decltype(result)>;
+
+                if constexpr (IsErr<VarType>) {
+                    return std::move(result.error());
+                } else if constexpr (IsOk<VarType>) {
+                    throw Error(Error::Unwrap, std::move(msg));
+                } else {
+                    static_assert(false,
+                                  "Result has an unexpected variant type");
+                }
+            },
+            _base());
     }
 
     /**
@@ -482,8 +667,9 @@ class Result : public std::variant<Ok<T>, Err<E>> {
      *
      * @param msg Error message when throw.
      * @return ErrorType Result error.
+     * @throw Error Unwrap error when result is not an error.
      */
-    [[nodiscard]] constexpr NEXUS_INLINE auto expect_err(const std::string &msg)
+    [[nodiscard]] NEXUS_INLINE constexpr auto expect_err(const std::string &msg)
         -> ErrorType {
         return expect_err(std::string(msg));
     }
@@ -492,9 +678,9 @@ class Result : public std::variant<Ok<T>, Err<E>> {
      * @brief Get and consume the result, throw if the result is an error.
      *
      * @return ValueType Result value.
-     * @throw Error Unwrap error.
+     * @throw Error Unwrap error when result is an error.
      */
-    [[nodiscard]] constexpr NEXUS_INLINE auto unwrap() -> ValueType {
+    [[nodiscard]] NEXUS_INLINE constexpr auto unwrap() -> ValueType {
         return std::move(unwrap_ref());
     }
 
@@ -502,9 +688,9 @@ class Result : public std::variant<Ok<T>, Err<E>> {
      * @brief Get the result value reference, throw if the result is an error.
      *
      * @return ValueType& Result value.
-     * @throw Error Unwrap error.
+     * @throw Error Unwrap error when result is an error.
      */
-    [[nodiscard]] constexpr NEXUS_INLINE auto unwrap_ref() -> ValueType & {
+    [[nodiscard]] NEXUS_INLINE constexpr auto unwrap_ref() -> ValueType & {
         return const_cast<ValueType &>(
             static_cast<const Result *>(this)->unwrap_ref());
     }
@@ -513,18 +699,18 @@ class Result : public std::variant<Ok<T>, Err<E>> {
      * @brief Get the result value reference, throw if the result is an error.
      *
      * @return const ValueType& Result value.
-     * @throw Error Unwrap error.
+     * @throw Error Unwrap error when result is an error.
      */
     [[nodiscard]] constexpr auto unwrap_ref() const -> const ValueType & {
         return std::visit(
             [](auto &&result) -> const ValueType & {
-                using RealVariantType = std::decay_t<decltype(result)>;
+                using VarType = std::decay_t<decltype(result)>;
 
-                if constexpr (IsOk<RealVariantType>) {
-                    return result.value();
-                } else if constexpr (IsErr<RealVariantType>) {
+                if constexpr (IsErr<VarType>) {
                     throw Error(Error::Unwrap, "Result is an error ({})",
                                 to_formattable(result.error()));
+                } else if constexpr (IsOk<VarType>) {
+                    return result.value();
                 } else {
                     static_assert(false,
                                   "Result has an unexpected variant type");
@@ -537,18 +723,18 @@ class Result : public std::variant<Ok<T>, Err<E>> {
      * @brief Get and consume the result, or return the user-defined one if the
      * result is an error.
      *
-     * @param value Fallback value.
+     * @param value User-defined value.
      * @return ValueType Result value.
      */
     [[nodiscard]] constexpr auto unwrap_or(ValueType &&value) -> ValueType {
         return std::visit(
             [&](auto &&result) -> ValueType {
-                using RealVariantType = std::decay_t<decltype(result)>;
+                using VarType = std::decay_t<decltype(result)>;
 
-                if constexpr (IsOk<RealVariantType>) {
-                    return std::move(result.value());
-                } else if constexpr (IsErr<RealVariantType>) {
+                if constexpr (IsErr<VarType>) {
                     return std::move(value);
+                } else if constexpr (IsOk<VarType>) {
+                    return std::move(result.value());
                 } else {
                     static_assert(false,
                                   "Result has an unexpected variant type");
@@ -561,21 +747,20 @@ class Result : public std::variant<Ok<T>, Err<E>> {
      * @brief Get and consume the result, or return the user-defined one if the
      * result is an error.
      *
-     * @param value Fallback value.
+     * @param value User-defined value.
      * @return ValueType Result value.
      */
-    [[nodiscard]] constexpr NEXUS_INLINE auto unwrap_or(const ValueType &value)
+    [[nodiscard]] NEXUS_INLINE constexpr auto unwrap_or(const ValueType &value)
         -> ValueType {
         return unwrap_or(ValueType(value));
     }
 
     /**
-     * @brief Get and consume the result, or return the default one (with
-     * default constructor) if the result is an error.
+     * @brief Get and consume the result, or return the default one.
      *
      * @return ValueType Result value.
      */
-    [[nodiscard]] constexpr NEXUS_INLINE auto unwrap_or_default() -> ValueType {
+    [[nodiscard]] NEXUS_INLINE constexpr auto unwrap_or_default() -> ValueType {
         return unwrap_or(ValueType());
     }
 
@@ -583,34 +768,39 @@ class Result : public std::variant<Ok<T>, Err<E>> {
      * @brief Get and consume the result, throw if the result is not an error.
      *
      * @return ErrorType Result error.
+     * @throw Error Unwrap error when result is not an error.
      */
-    [[nodiscard]] constexpr auto unwrap_err() -> ErrorType {
+    [[nodiscard]] NEXUS_INLINE constexpr auto unwrap_err() -> ErrorType {
         return std::move(unwrap_err_ref());
     }
 
     /**
-     * @brief Get and consume the result, throw if the result is not an error.
+     * @brief Get the result error reference, throw if the result is not an
+     * error.
      *
      * @return ErrorType& Result error.
+     * @throw Error Unwrap error when result is not an error.
      */
-    [[nodiscard]] constexpr auto unwrap_err_ref() -> ErrorType & {
+    [[nodiscard]] NEXUS_INLINE constexpr auto unwrap_err_ref() -> ErrorType & {
         return const_cast<ErrorType &>(
             static_cast<const Result *>(this)->unwrap_err_ref());
     }
 
     /**
-     * @brief Get and consume the result, throw if the result is not an error.
+     * @brief Get the result error reference, throw if the result is not an
+     * error.
      *
      * @return const ErrorType& Result error.
+     * @throw Error Unwrap error when result is not an error.
      */
     [[nodiscard]] constexpr auto unwrap_err_ref() const -> const ErrorType & {
         return std::visit(
             [](auto &&result) -> const ErrorType & {
-                using RealVariantType = std::decay_t<decltype(result)>;
+                using VarType = std::decay_t<decltype(result)>;
 
-                if constexpr (IsErr<RealVariantType>) {
+                if constexpr (IsErr<VarType>) {
                     return result.error();
-                } else if constexpr (IsOk<RealVariantType>) {
+                } else if constexpr (IsOk<VarType>) {
                     throw Error(Error::Unwrap, "Result is not an error ({})",
                                 to_formattable(result.value()));
                 } else {
@@ -622,88 +812,134 @@ class Result : public std::variant<Ok<T>, Err<E>> {
     }
 
     /**
-     * @brief Convert value if exists, return the new result.
+     * @brief Map value to other, return the new result.
      *
-     * @param conv Convert function.
-     * @return decltype(auto) New result.
-     */
-    [[nodiscard]] constexpr auto map(auto &&conv) -> decltype(auto) {
-        using RealValueType = std::invoke_result_t<decltype(conv), ValueType>;
-        using FinalResultType = Result<RealValueType, E>;
-
-        if (is_ok()) {
-            return FinalResultType(Ok(conv(unwrap())));
-        }
-        return FinalResultType(Err(unwrap_err()));
-    }
-
-    /**
-     * @brief Convert error if exists, return the new result.
-     *
-     * @param conv Convert function.
-     * @return decltype(auto) New result.
-     */
-    [[nodiscard]] constexpr auto map_err(auto &&conv) -> decltype(auto) {
-        using RealErrorType = std::invoke_result_t<decltype(conv), ErrorType>;
-        using FinalResultType = Result<T, RealErrorType>;
-
-        if (is_err()) {
-            return FinalResultType(Err(conv(unwrap_err())));
-        }
-        return FinalResultType(Ok(unwrap()));
-    }
-
-    /**
-     * @brief Convert value if exists, or return the user-defined one.
-     *
-     * @tparam U New value type.
-     * @param value User-defined value.
-     * @param conv Convert function.
-     * @return U Final value.
-     */
-    template <typename U>
-    [[nodiscard]] constexpr auto map_or(U &&value, auto &&conv)
-        -> decltype(auto)
-        requires(
-            std::same_as<std::invoke_result_t<decltype(conv), ValueType>, U>)
-    {
-        if (is_ok()) {
-            return conv(unwrap());
-        }
-        return U(std::forward<U>(value));
-    }
-
-    /**
-     * @brief Convert value if exists, or return the default one.
-     *
-     * @param conv Convert function.
-     * @return decltype(auto) Final value.
-     */
-    [[nodiscard]] NEXUS_INLINE constexpr auto map_or_default(auto &&conv)
-        -> decltype(auto)
-        requires(std::is_invocable_v<decltype(conv), ValueType>)
-    {
-        using RealValueType = std::invoke_result_t<decltype(conv), ValueType>;
-
-        return map_or(RealValueType(), std::forward<decltype(conv)>(conv));
-    }
-
-    /**
-     * @brief Convert value or error to new value type.
-     *
-     * @param func Error convert function.
+     * @tparam F Value convert function type.
+     * @tparam Tn New value type.
+     * @tparam Ret Mapped result type.
      * @param conv Value convert function.
-     * @return decltype(auto) Convert function result.
+     * @return Ret Mapped result.
      */
-    [[nodiscard]] constexpr auto map_or_else(auto &&func, auto &&conv)
-        -> decltype(auto)
-        requires(std::same_as<std::invoke_result_t<decltype(conv), ValueType>,
-                              std::invoke_result_t<decltype(func), ErrorType>>)
-    {
-        if (is_ok()) {
-            return conv(unwrap());
-        }
-        return func(unwrap_err());
+    template <typename F, typename Tn = std::invoke_result_t<F, ValueType>,
+              typename Ret = Result<Tn, E>>
+    [[nodiscard]] constexpr auto map(F &&conv) -> Ret {
+        return std::visit(
+            [&](auto &&result) -> Ret {
+                using VarType = std::decay_t<decltype(result)>;
+
+                if constexpr (IsErr<VarType>) {
+                    return Err(std::move(result.error()));
+                } else if constexpr (IsOk<VarType>) {
+                    return Ok(std::forward<F>(conv)(std::move(result.value())));
+                } else {
+                    static_assert(false,
+                                  "Result has an unexpected variant type");
+                }
+            },
+            _base());
+    }
+
+    /**
+     * @brief Map error to other, return the new result.
+     *
+     * @tparam F Error convert function type.
+     * @tparam En New error type.
+     * @tparam Ret Mapped result type.
+     * @param conv Error convert function.
+     * @return Ret Mapped result.
+     */
+    template <typename F, typename En = std::invoke_result_t<F, ErrorType>,
+              typename Ret = Result<T, En>>
+    [[nodiscard]] constexpr auto map_err(F &&conv) -> Ret {
+        return std::visit(
+            [&](auto &&result) -> Ret {
+                using VarType = std::decay_t<decltype(result)>;
+
+                if constexpr (IsErr<VarType>) {
+                    return Err(
+                        std::forward<F>(conv)(std::move(result.error())));
+                } else if constexpr (IsOk<VarType>) {
+                    return Ok(std::move(result.value()));
+                } else {
+                    static_assert(false,
+                                  "Result has an unexpected variant type");
+                }
+            },
+            _base());
+    }
+
+    /**
+     * @brief Map value to other, or return the user-defined one.
+     *
+     * @tparam U User-defined value type.
+     * @tparam F Value convert function type.
+     * @tparam Ret Mapped return type.
+     * @param value User-defined value.
+     * @param conv Value convert function.
+     * @return Ret Mapped value.
+     */
+    template <typename U, typename F,
+              typename Ret =
+                  std::common_type_t<U, std::invoke_result_t<F, ValueType>>>
+    [[nodiscard]] constexpr auto map_or(U &&value, F &&conv) -> Ret {
+        return std::visit(
+            [&](auto &&result) -> Ret {
+                using VarType = std::decay_t<decltype(result)>;
+
+                if constexpr (IsErr<VarType>) {
+                    return std::forward<U>(value);
+                } else if constexpr (IsOk<VarType>) {
+                    return std::forward<F>(conv)(std::move(result.value()));
+                } else {
+                    static_assert(false,
+                                  "Result has an unexpected variant type");
+                }
+            },
+            _base());
+    }
+
+    /**
+     * @brief Map value to other, or return the default one.
+     *
+     * @tparam F Value convert function type.
+     * @tparam Ret Mapped return type.
+     * @param conv Value convert function.
+     * @return Ret Mapped value.
+     */
+    template <typename F, typename Ret = std::invoke_result_t<F, ValueType>>
+    [[nodiscard]] NEXUS_INLINE constexpr auto map_or_default(F &&conv) -> Ret {
+        return map_or(Ret(), std::forward<F>(conv));
+    }
+
+    /**
+     * @brief Map value or error to other.
+     *
+     * @tparam Ef Error convert function type.
+     * @tparam F Value convert function type.
+     * @tparam Ret Mapped return type.
+     * @param econv Error convert function.
+     * @param conv Value convert function.
+     * @return Ret Mapped value.
+     */
+    template <
+        typename Ef, typename F,
+        typename Ret = std::common_type_t<std::invoke_result_t<Ef, ErrorType>,
+                                          std::invoke_result_t<F, ValueType>>>
+    [[nodiscard]] constexpr auto map_or_else(Ef &&econv, F &&conv) -> Ret {
+        return std::visit(
+            [&](auto &&result) -> Ret {
+                using VarType = std::decay_t<decltype(result)>;
+
+                if constexpr (IsErr<VarType>) {
+                    return std::forward<Ef>(econv)(std::move(result.error()));
+                } else if constexpr (IsOk<VarType>) {
+                    return std::forward<F>(conv)(std::move(result.value()));
+                } else {
+                    static_assert(false,
+                                  "Result has an unexpected variant type");
+                }
+            },
+            _base());
     }
 
   private:
@@ -728,3 +964,11 @@ class Result : public std::variant<Ok<T>, Err<E>> {
 };
 
 } // namespace nexus
+
+namespace {
+
+using nexus::Err;
+
+using nexus::Ok;
+
+} // namespace
