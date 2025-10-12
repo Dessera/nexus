@@ -7,10 +7,7 @@ test_args = [
     '-Werror',
 ]
 
-test_src = files(
-    'test_curried.cpp',
-    'test_lazy.cpp',
-)
+test_src = []
 
 subdir('exec')
 subdir('sync')

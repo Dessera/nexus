@@ -1,6 +1,18 @@
+/**
+ * @file format.hpp
+ * @author Dessera (dessera@qq.com)
+ * @brief Format utilities.
+ * @version 0.1.0
+ * @date 2025-10-12
+ *
+ * @copyright Copyright (c) 2025
+ *
+ */
+
 #pragma once
 
 #include "nexus/common.hpp"
+#include "nexus/utils/format/ansi.hpp"
 
 #include <cstdio>
 #include <format>
@@ -40,6 +52,31 @@ template <typename T, typename CharT = char>
     requires(!Formattable<T, CharT>)
 static auto to_formattable(const T &value) -> const void * {
     return static_cast<const void *>(&value);
+}
+
+/**
+ * @brief Wrap object with ANSI command.
+ *
+ * @tparam T Wrapped type.
+ * @param value Wrapped value.
+ * @param style Console style.
+ * @return format::ANSI<T> ANSI wrapper.
+ */
+template <typename T>
+NEXUS_INLINE constexpr auto ansi(const T &value, format::TextStyle style)
+    -> format::ANSI<T> {
+    return format::ANSI(value, style);
+}
+
+/**
+ * @brief Get single ANSI command.
+ *
+ * @param style Console style.
+ * @return format::ANSI<void> ANSI command.
+ */
+NEXUS_INLINE constexpr auto ansi(format::TextStyle style)
+    -> format::ANSI<void> {
+    return format::ANSI<void>(style);
 }
 
 /**

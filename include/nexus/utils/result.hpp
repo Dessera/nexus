@@ -1,3 +1,14 @@
+/**
+ * @file result.hpp
+ * @author Dessera (dessera@qq.com)
+ * @brief Rust-like result type.
+ * @version 0.1.0
+ * @date 2025-10-12
+ *
+ * @copyright Copyright (c) 2025
+ *
+ */
+
 #pragma once
 
 #include "nexus/common.hpp"
