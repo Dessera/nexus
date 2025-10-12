@@ -403,20 +403,11 @@ class Result : public std::variant<Ok<T>, Err<E>> {
      */
     template <typename Tn>
     [[nodiscard]] constexpr auto both(Result<Tn, E> &&res) -> Result<Tn, E> {
-        return std::visit(
-            [&](auto &&result) -> Result<Tn, E> {
-                using VarType = std::decay_t<decltype(result)>;
-
-                if constexpr (IsErr<VarType>) {
-                    return Err(std::move(result.error()));
-                } else if constexpr (IsOk<VarType>) {
-                    return std::move(res);
-                } else {
-                    static_assert(false,
-                                  "Result has an unexpected variant type");
-                }
-            },
-            _base());
+        if (auto *perr = std::get_if<Err<ErrorType>>(&_base());
+            perr != nullptr) {
+            return Err(std::move(perr->error()));
+        }
+        return std::move(res);
     }
 
     /**
@@ -456,20 +447,11 @@ class Result : public std::variant<Ok<T>, Err<E>> {
      */
     template <typename En>
     [[nodiscard]] constexpr auto either(Result<T, En> &&res) -> Result<T, En> {
-        return std::visit(
-            [&](auto &&result) -> Result<T, En> {
-                using VarType = std::decay_t<decltype(result)>;
-
-                if constexpr (IsErr<VarType>) {
-                    return std::move(res);
-                } else if constexpr (IsOk<VarType>) {
-                    return Ok(std::move(result.value()));
-                } else {
-                    static_assert(false,
-                                  "Result has an unexpected variant type");
-                }
-            },
-            _base());
+        if (auto *pvalue = std::get_if<Ok<ValueType>>(&_base());
+            pvalue != nullptr) {
+            return Ok(std::move(pvalue->value()));
+        }
+        return std::move(res);
     }
 
     /**
@@ -534,8 +516,9 @@ class Result : public std::variant<Ok<T>, Err<E>> {
      * @return Result Moved result.
      */
     [[nodiscard]] constexpr auto inspect(auto &&func) -> Result {
-        for (const auto &value : *this) {
-            func(value);
+        if (auto *pvalue = std::get_if<Ok<ValueType>>(&_base());
+            pvalue != nullptr) {
+            std::forward<decltype(func)>(func)(pvalue->value());
         }
 
         return std::move(*this);
@@ -548,8 +531,9 @@ class Result : public std::variant<Ok<T>, Err<E>> {
      * @return Result Moved result.
      */
     [[nodiscard]] constexpr auto inspect_err(auto &&func) -> Result {
-        for (const auto &err : this->error_enumerator()) {
-            func(err);
+        if (auto *perr = std::get_if<Err<ErrorType>>(&_base());
+            perr != nullptr) {
+            std::forward<decltype(func)>(func)(perr->error());
         }
 
         return std::move(*this);
@@ -572,8 +556,9 @@ class Result : public std::variant<Ok<T>, Err<E>> {
      * @return false Result is not error or does not match predicate.
      */
     [[nodiscard]] constexpr auto is_err_and(auto &&pred) -> bool {
-        if (auto *err = std::get_if<Err<ErrorType>>(&_base()); err != nullptr) {
-            return pred(std::move(err->error()));
+        if (auto *perr = std::get_if<Err<ErrorType>>(&_base());
+            perr != nullptr) {
+            return std::forward<decltype(pred)>(pred)(std::move(perr->error()));
         }
         return false;
     }
@@ -595,9 +580,10 @@ class Result : public std::variant<Ok<T>, Err<E>> {
      * @return false Result is not value or does not match predicate.
      */
     [[nodiscard]] constexpr auto is_ok_and(auto &&pred) -> bool {
-        if (auto *value = std::get_if<Ok<ValueType>>(&_base());
-            value != nullptr) {
-            return pred(std::move(value->value()));
+        if (auto *pvalue = std::get_if<Ok<ValueType>>(&_base());
+            pvalue != nullptr) {
+            return std::forward<decltype(pred)>(pred)(
+                std::move(pvalue->value()));
         }
         return false;
     }
@@ -610,20 +596,12 @@ class Result : public std::variant<Ok<T>, Err<E>> {
      * @throw Error Unwrap error when result is an error.
      */
     [[nodiscard]] constexpr auto expect(std::string &&msg) -> ValueType {
-        return std::visit(
-            [&](auto &&result) -> ValueType {
-                using VarType = std::decay_t<decltype(result)>;
+        if (auto *pvalue = std::get_if<Ok<ValueType>>(&_base());
+            pvalue != nullptr) {
+            return std::move(pvalue->value());
+        }
 
-                if constexpr (IsErr<VarType>) {
-                    throw Error(Error::Unwrap, std::move(msg));
-                } else if constexpr (IsOk<VarType>) {
-                    return std::move(result.value());
-                } else {
-                    static_assert(false,
-                                  "Result has an unexpected variant type");
-                }
-            },
-            _base());
+        throw Error(Error::Unwrap, std::move(msg));
     }
 
     /**
@@ -646,20 +624,12 @@ class Result : public std::variant<Ok<T>, Err<E>> {
      * @throw Error Unwrap error when result is not an error.
      */
     [[nodiscard]] constexpr auto expect_err(std::string &&msg) -> ErrorType {
-        return std::visit(
-            [&](auto &&result) -> ErrorType {
-                using VarType = std::decay_t<decltype(result)>;
+        if (auto *perr = std::get_if<Err<ErrorType>>(&_base());
+            perr != nullptr) {
+            return std::move(perr->error());
+        }
 
-                if constexpr (IsErr<VarType>) {
-                    return std::move(result.error());
-                } else if constexpr (IsOk<VarType>) {
-                    throw Error(Error::Unwrap, std::move(msg));
-                } else {
-                    static_assert(false,
-                                  "Result has an unexpected variant type");
-                }
-            },
-            _base());
+        throw Error(Error::Unwrap, std::move(msg));
     }
 
     /**
@@ -727,20 +697,12 @@ class Result : public std::variant<Ok<T>, Err<E>> {
      * @return ValueType Result value.
      */
     [[nodiscard]] constexpr auto unwrap_or(ValueType &&value) -> ValueType {
-        return std::visit(
-            [&](auto &&result) -> ValueType {
-                using VarType = std::decay_t<decltype(result)>;
+        if (auto *pvalue = std::get_if<Ok<ValueType>>(&_base());
+            pvalue != nullptr) {
+            return std::move(pvalue->value());
+        }
 
-                if constexpr (IsErr<VarType>) {
-                    return std::move(value);
-                } else if constexpr (IsOk<VarType>) {
-                    return std::move(result.value());
-                } else {
-                    static_assert(false,
-                                  "Result has an unexpected variant type");
-                }
-            },
-            _base());
+        return std::move(value);
     }
 
     /**
@@ -882,20 +844,12 @@ class Result : public std::variant<Ok<T>, Err<E>> {
               typename Ret =
                   std::common_type_t<U, std::invoke_result_t<F, ValueType>>>
     [[nodiscard]] constexpr auto map_or(U &&value, F &&conv) -> Ret {
-        return std::visit(
-            [&](auto &&result) -> Ret {
-                using VarType = std::decay_t<decltype(result)>;
+        if (auto *pvalue = std::get_if<Ok<ValueType>>(&_base());
+            pvalue != nullptr) {
+            return std::forward<F>(conv)(std::move(pvalue->value()));
+        }
 
-                if constexpr (IsErr<VarType>) {
-                    return std::forward<U>(value);
-                } else if constexpr (IsOk<VarType>) {
-                    return std::forward<F>(conv)(std::move(result.value()));
-                } else {
-                    static_assert(false,
-                                  "Result has an unexpected variant type");
-                }
-            },
-            _base());
+        return std::forward<U>(value);
     }
 
     /**

@@ -16,6 +16,8 @@ subdir('exec')
 subdir('sync')
 subdir('utils')
 
+subdir('stress')
+
 test_nexus = executable(
     'test_nexus',
     test_src,
