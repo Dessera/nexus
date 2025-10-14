@@ -11,6 +11,12 @@ Diagnostics:
       performance-*,
       misc-*
     ]
-    Remove: []
+    Remove: [
+      readability-function-cognitive-complexity,
+      cppcoreguidelines-owning-memory,
+      cppcoreguidelines-avoid-goto,
+      modernize-use-trailing-return-type,
+      modernize-type-traits
+    ]
 InlayHints:
   BlockEnd: true

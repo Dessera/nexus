@@ -1,3 +1,4 @@
+/// @file result.hpp
 /// Rust-like result type.
 ///
 /// This `Result` type is implemented by `std::variant`, which may be slower
@@ -262,14 +263,8 @@ class Result : public std::variant<Ok<T>, Err<E>> {
         return ErrorEnumerator(*this);
     }
 
-    /**
-     * @brief  Return new result if current result is not an error, otherwise
-     * return current error.
-     *
-     * @tparam Tn Another value type.
-     * @param res Another result.
-     * @return Result<Tn, E> Final result.
-     */
+    /// Return new result if current result is not an error, otherwise return
+    /// current error.
     template <typename Tn>
     [[nodiscard]] constexpr auto both(Result<Tn, E> &&res) -> Result<Tn, E> {
         if (auto *perr = std::get_if<Err<ErrorType>>(&_base());
@@ -279,13 +274,8 @@ class Result : public std::variant<Ok<T>, Err<E>> {
         return std::move(res);
     }
 
-    /**
-     * @brief Return conv result if current result is not an error, otherwise
-     * return current error.
-     *
-     * @tparam F Value convert function type.
-     * @tparam Ret Final result type.
-     */
+    /// Return conv result if current result is not an error, otherwise return
+    /// current error.
     template <typename F, typename Ret = std::invoke_result_t<F, ValueType>>
     [[nodiscard]] constexpr auto both_and(F &&conv) -> Ret
         requires(IsResult<Ret>)
@@ -306,14 +296,8 @@ class Result : public std::variant<Ok<T>, Err<E>> {
             _base());
     }
 
-    /**
-     * @brief Return new result if current result is an error, otherwise return
-     * current value.
-     *
-     * @tparam En Another error type.
-     * @param res Another result.
-     * @return Result<T, En> Final result.
-     */
+    /// Return new result if current result is an error, otherwise return
+    /// current value.
     template <typename En>
     [[nodiscard]] constexpr auto either(Result<T, En> &&res) -> Result<T, En> {
         if (auto *pvalue = std::get_if<Ok<ValueType>>(&_base());
@@ -323,13 +307,8 @@ class Result : public std::variant<Ok<T>, Err<E>> {
         return std::move(res);
     }
 
-    /**
-     * @brief Return conv result if result is an error, otherwise return current
-     * value.
-     *
-     * @tparam F Error convert function type.
-     * @tparam Ret Final result type.
-     */
+    /// Return conv result if result is an error, otherwise return current
+    /// value.
     template <typename F, typename Ret = std::invoke_result_t<F, ErrorType>>
     [[nodiscard]] constexpr auto either_or(F &&conv) -> Ret
         requires(IsResult<Ret>)
@@ -350,13 +329,7 @@ class Result : public std::variant<Ok<T>, Err<E>> {
             _base());
     }
 
-    /**
-     * @brief Convert Result<Result<T, E>, E> to Result<T, E>.
-     *
-     * @tparam Ret Final result type.
-     * @tparam Tn Final result value type.
-     * @tparam En Final result error type.
-     */
+    /// Convert Result<Result<T, E>, E> to Result<T, E>.
     template <typename Ret = ValueType, typename Tn = Ret::ValueType,
               typename En = Ret::ErrorType>
     [[nodiscard]] constexpr auto flattern() -> Ret
@@ -378,12 +351,7 @@ class Result : public std::variant<Ok<T>, Err<E>> {
             _base());
     }
 
-    /**
-     * @brief Inspect value in result.
-     *
-     * @param func Inspect function.
-     * @return Result Moved result.
-     */
+    /// Inspect value in result.
     [[nodiscard]] constexpr auto inspect(auto &&func) -> Result {
         if (auto *pvalue = std::get_if<Ok<ValueType>>(&_base());
             pvalue != nullptr) {
@@ -393,12 +361,7 @@ class Result : public std::variant<Ok<T>, Err<E>> {
         return std::move(*this);
     }
 
-    /**
-     * @brief Inspect error in result.
-     *
-     * @param func Inspect function.
-     * @return Result Moved result.
-     */
+    /// Inspect error in result.
     [[nodiscard]] constexpr auto inspect_err(auto &&func) -> Result {
         if (auto *perr = std::get_if<Err<ErrorType>>(&_base());
             perr != nullptr) {
@@ -408,22 +371,12 @@ class Result : public std::variant<Ok<T>, Err<E>> {
         return std::move(*this);
     }
 
-    /**
-     * @brief Check if result is error.
-     *
-     * @return true Result is error.
-     * @return false Result is not error.
-     */
+    /// Check if result is error.
     [[nodiscard, nexus_inline]] constexpr auto is_err() const -> bool {
         return std::get_if<Err<ErrorType>>(&_base()) != nullptr;
     }
 
-    /**
-     * @brief Check if result is error and matches predicate.
-     *
-     * @return true Result is error and matches predicate.
-     * @return false Result is not error or does not match predicate.
-     */
+    /// Check if result is error and matches predicate.
     [[nodiscard]] constexpr auto is_err_and(auto &&pred) -> bool {
         if (auto *perr = std::get_if<Err<ErrorType>>(&_base());
             perr != nullptr) {
@@ -432,22 +385,12 @@ class Result : public std::variant<Ok<T>, Err<E>> {
         return false;
     }
 
-    /**
-     * @brief Check if result is value.
-     *
-     * @return true Result is value.
-     * @return false Result is not value.
-     */
+    /// Check if result is value.
     [[nodiscard, nexus_inline]] constexpr auto is_ok() const -> bool {
         return std::get_if<Ok<ValueType>>(&_base()) != nullptr;
     }
 
-    /**
-     * @brief Check if result is value and matches predicate.
-     *
-     * @return true Result is value and matches predicate.
-     * @return false Result is not value or does not match predicate.
-     */
+    /// Check if result is value and matches predicate.
     [[nodiscard]] constexpr auto is_ok_and(auto &&pred) -> bool {
         if (auto *pvalue = std::get_if<Ok<ValueType>>(&_base());
             pvalue != nullptr) {
@@ -457,13 +400,14 @@ class Result : public std::variant<Ok<T>, Err<E>> {
         return false;
     }
 
-    /**
-     * @brief Get and consume the result, throw if the result is an error.
-     *
-     * @param msg Error message when throw.
-     * @return ValueType Result value.
-     * @throw Error Unwrap error when result is an error.
-     */
+    /// @brief Get the value, throw specific message if there is an error.
+    ///
+    /// ## Example:
+    ///
+    /// ```cpp
+    /// Result<int, const char *> res = Err("Unexpected");
+    /// auto value = res.expect("Unexpected");    // throw here
+    /// ```
     [[nodiscard]] constexpr auto expect(std::string &&msg) -> ValueType {
         if (auto *pvalue = std::get_if<Ok<ValueType>>(&_base());
             pvalue != nullptr) {
@@ -473,25 +417,20 @@ class Result : public std::variant<Ok<T>, Err<E>> {
         throw Error(Error::Unwrap, std::move(msg));
     }
 
-    /**
-     * @brief Get and consume the result, throw if the result is an error.
-     *
-     * @param msg Error message when throw.
-     * @return ValueType Result value.
-     * @throw Error Unwrap error when result is an error.
-     */
+    /// Get the value, throw specific message if there is an error.
     [[nodiscard, nexus_inline]] constexpr auto expect(const std::string &msg)
         -> ValueType {
         expect(std::string(msg));
     }
 
-    /**
-     * @brief Get and consume the result, throw if the result is not an error.
-     *
-     * @param msg Error message when throw.
-     * @return ErrorType Result error.
-     * @throw Error Unwrap error when result is not an error.
-     */
+    /// @brief Get the error, throw specific message if there is no error.
+    ///
+    /// ## Example:
+    ///
+    /// ```cpp
+    /// Result<int, const char *> res = Ok(1);
+    /// auto err = res.expect_err("Unexpected");    // throw here
+    /// ```
     [[nodiscard]] constexpr auto expect_err(std::string &&msg) -> ErrorType {
         if (auto *perr = std::get_if<Err<ErrorType>>(&_base());
             perr != nullptr) {
@@ -501,45 +440,31 @@ class Result : public std::variant<Ok<T>, Err<E>> {
         throw Error(Error::Unwrap, std::move(msg));
     }
 
-    /**
-     * @brief Get and consume the result, throw if the result is not an error.
-     *
-     * @param msg Error message when throw.
-     * @return ErrorType Result error.
-     * @throw Error Unwrap error when result is not an error.
-     */
+    /// Get the error, throw specific message if there is no error.
     [[nodiscard, nexus_inline]] constexpr auto
     expect_err(const std::string &msg) -> ErrorType {
         return expect_err(std::string(msg));
     }
 
-    /**
-     * @brief Get and consume the result, throw if the result is an error.
-     *
-     * @return ValueType Result value.
-     * @throw Error Unwrap error when result is an error.
-     */
+    /// @brief Get the value, throw if there is an error.
+    ///
+    /// ## Example:
+    ///
+    /// ```cpp
+    /// Result<int, const char *> res = Ok(1);
+    /// assert(res.unwrap() == 1);
+    /// ```
     [[nodiscard, nexus_inline]] constexpr auto unwrap() -> ValueType {
         return std::move(unwrap_ref());
     }
 
-    /**
-     * @brief Get the result value reference, throw if the result is an error.
-     *
-     * @return ValueType& Result value.
-     * @throw Error Unwrap error when result is an error.
-     */
+    /// Get the reference of value, throw if there is an error.
     [[nodiscard, nexus_inline]] constexpr auto unwrap_ref() -> ValueType & {
         return const_cast<ValueType &>(
             static_cast<const Result *>(this)->unwrap_ref());
     }
 
-    /**
-     * @brief Get the result value reference, throw if the result is an error.
-     *
-     * @return const ValueType& Result value.
-     * @throw Error Unwrap error when result is an error.
-     */
+    /// Get the reference of value, throw if there is an error.
     [[nodiscard]] constexpr auto unwrap_ref() const -> const ValueType & {
         return std::visit(
             [](auto &&result) -> const ValueType & {
@@ -558,13 +483,15 @@ class Result : public std::variant<Ok<T>, Err<E>> {
             _base());
     }
 
-    /**
-     * @brief Get and consume the result, or return the user-defined one if the
-     * result is an error.
-     *
-     * @param value User-defined value.
-     * @return ValueType Result value.
-     */
+    /// @brief Get the value, or return the user-defined one.
+    ///
+    /// ## Example:
+    ///
+    /// ```cpp
+    /// Result<int, const char *> res = Err("Unexpected");
+    /// auto value = res.unwrap_or(0);
+    /// assert(value == 0);
+    /// ```
     [[nodiscard]] constexpr auto unwrap_or(ValueType &&value) -> ValueType {
         if (auto *pvalue = std::get_if<Ok<ValueType>>(&_base());
             pvalue != nullptr) {
@@ -574,57 +501,45 @@ class Result : public std::variant<Ok<T>, Err<E>> {
         return std::move(value);
     }
 
-    /**
-     * @brief Get and consume the result, or return the user-defined one if the
-     * result is an error.
-     *
-     * @param value User-defined value.
-     * @return ValueType Result value.
-     */
+    /// Get the value, or return the user-defined one.
     [[nodiscard, nexus_inline]] constexpr auto unwrap_or(const ValueType &value)
         -> ValueType {
         return unwrap_or(ValueType(value));
     }
 
-    /**
-     * @brief Get and consume the result, or return the default one.
-     *
-     * @return ValueType Result value.
-     */
+    /// @brief Get the value, or return the default one.
+    ///
+    /// ## Example:
+    ///
+    /// ```cpp
+    /// Result<int, const char *> res = Err("Unexpected");
+    /// auto value = res.unwrap_or_default();
+    /// assert(value == 0);
+    /// ```
     [[nodiscard, nexus_inline]] constexpr auto unwrap_or_default()
         -> ValueType {
         return unwrap_or(ValueType());
     }
 
-    /**
-     * @brief Get and consume the result, throw if the result is not an error.
-     *
-     * @return ErrorType Result error.
-     * @throw Error Unwrap error when result is not an error.
-     */
+    /// @brief Get the error, throw if there is no error.
+    ///
+    /// ## Example:
+    ///
+    /// ```cpp
+    /// Result<int, const char *> res = Err("Unexpected");
+    /// assert(std::string_view(res.unwrap_err()) == "Unexpected");
+    /// ```
     [[nodiscard, nexus_inline]] constexpr auto unwrap_err() -> ErrorType {
         return std::move(unwrap_err_ref());
     }
 
-    /**
-     * @brief Get the result error reference, throw if the result is not an
-     * error.
-     *
-     * @return ErrorType& Result error.
-     * @throw Error Unwrap error when result is not an error.
-     */
+    /// Get the reference of error, throw if there is no error.
     [[nodiscard, nexus_inline]] constexpr auto unwrap_err_ref() -> ErrorType & {
         return const_cast<ErrorType &>(
             static_cast<const Result *>(this)->unwrap_err_ref());
     }
 
-    /**
-     * @brief Get the result error reference, throw if the result is not an
-     * error.
-     *
-     * @return const ErrorType& Result error.
-     * @throw Error Unwrap error when result is not an error.
-     */
+    /// Get the const reference of error, throw if there is no error.
     [[nodiscard]] constexpr auto unwrap_err_ref() const -> const ErrorType & {
         return std::visit(
             [](auto &&result) -> const ErrorType & {
@@ -643,15 +558,13 @@ class Result : public std::variant<Ok<T>, Err<E>> {
             _base());
     }
 
-    /// Map value, convert it to another type. Returns the new result.
+    /// @brief Map value, convert it to another type. Returns the new result.
     ///
     /// ## Example:
     ///
     /// ```cpp
-    /// Result<int, const char*> res = Ok(1);
-    /// auto value = res.map([](int value) { return value * 2L; })
-    ///                  .map_err([](auto &&) { return "Expected"; })
-    ///                  .unwrap_err();
+    /// Result<int, const char *> res = Ok(1);
+    /// auto value = res.map([](int value) { return value * 2L; }).unwrap();
     /// assert(value == 2);
     /// ```
     template <typename F, typename Tn = std::invoke_result_t<F, ValueType>,
@@ -673,16 +586,15 @@ class Result : public std::variant<Ok<T>, Err<E>> {
             _base());
     }
 
-    /// Map error, convert it to another type. Returns the new result.
+    /// @brief Map error, convert it to another type. Returns the new result.
     ///
     /// ## Example:
     ///
     /// ```cpp
-    /// Result<int, const char*> res = Err("Unexpected");
-    /// auto err = res.map([](int value) { return value * 2L; })
-    ///                .map_err([](auto &&) { return "Expected"; })
+    /// Result<int, const char *> res = Err("Unexpected");
+    /// auto err = res.map_err([](auto &&e) { return std::string_view(e); })
     ///                .unwrap_err();
-    /// assert(std::string_view(err) == "Expected");
+    /// assert(err == "Unexpected");
     /// ```
     template <typename F, typename En = std::invoke_result_t<F, ErrorType>,
               typename Ret = Result<T, En>>
@@ -704,14 +616,21 @@ class Result : public std::variant<Ok<T>, Err<E>> {
             _base());
     }
 
-    /// Map value, convert it to another type, or return the user-defined one.
+    /// @brief Map value, convert it to another type, or return the user-defined
+    /// one.
     ///
     /// ## Example:
     ///
     /// ```cpp
-    /// Result<int, const char*> res = Err("Unexpected");
-    /// value = res.map_or(4, [](int value) { return value * 2L; });
-    /// assert(value == 4);
+    /// // Ok case:
+    /// Result<int, const char *> res = Ok(1);
+    /// value = res.map_or(0, [](int value) { return value * 2L; });
+    /// assert(value == 2);
+    ///
+    /// // Err case:
+    /// res = Err("Unexpected");
+    /// value = res.map_or(0, [](int value) { return value * 2L; });
+    /// assert(value == 0);
     /// ```
     template <typename U, typename F,
               typename Ret =
@@ -725,29 +644,42 @@ class Result : public std::variant<Ok<T>, Err<E>> {
         return std::forward<U>(value);
     }
 
-    /// Map value, convert it to another type, or return the default one.
+    /// @brief Map value, convert it to another type, or return the default one.
     ///
     /// ## Example:
     ///
     /// ```cpp
-    /// Result<int, const char*> res = Ok(1);
+    /// // Ok case:
+    /// Result<int, const char *> res = Ok(1);
     /// value = res.map_or_default([](int value) { return value * 2L; });
     /// assert(value == 2);
+    ///
+    /// // Err case:
+    /// res = Err("Unexpected");
+    /// value = res.map_or_default([](int value) { return value * 2L; });
+    /// assert(value == 0);
     /// ```
     template <typename F, typename Ret = std::invoke_result_t<F, ValueType>>
     [[nodiscard, nexus_inline]] constexpr auto map_or_default(F &&conv) -> Ret {
         return map_or(Ret(), std::forward<F>(conv));
     }
 
-    /// Map value or error, convert them to another type.
+    /// @brief Map value or error, convert them to another type.
     ///
     /// ## Example:
     ///
     /// ```cpp
-    /// Result<int, const char*> res = Ok(1);
+    /// // Ok case:
+    /// Result<int, const char *> res = Ok(1);
     /// value = res.map_or_else([](auto &&) { return 4; },
     ///                         [](int value) { return value * 2L; });
     /// assert(value == 2);
+    ///
+    /// // Err case:
+    /// res = Err("Unexpected");
+    /// value = res.map_or_else([](auto &&) { return 4; },
+    ///                         [](int value) { return value * 2L; });
+    /// assert(value == 4);
     /// ```
     template <
         typename Ef, typename F,
@@ -776,6 +708,7 @@ class Result : public std::variant<Ok<T>, Err<E>> {
         return *static_cast<VariantType *>(this);
     }
 
+    /// Get variant base from current result.
     [[nodiscard, nexus_inline]] constexpr auto _base() const
         -> const VariantType & {
         return *static_cast<const VariantType *>(this);
