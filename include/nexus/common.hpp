@@ -15,10 +15,12 @@
 #endif
 
 #if defined _WIN32 || defined __CYGWIN__
-    #define NEXUS_INLINE __forceinline
+    #define nexus_inline msvc::forceinline
 #else
-    #define NEXUS_INLINE __attribute__((always_inline)) inline
+    #define nexus_inline gnu::always_inline
 #endif
+
+#define NEXUS_INLINE [[nexus_inline]] inline
 
 #define NEXUS_COPY_DELETE(type)                                                \
     type(const type &other) = delete;                                          \

@@ -1,7 +1,7 @@
 
-#include "nexus/utils/format.hpp"
-#include "nexus/utils/result.hpp"
-#include "nexus/utils/time.hpp"
+#include "nexus/format.hpp"
+#include "nexus/result.hpp"
+#include "nexus/time.hpp"
 
 #include <bits/getopt_core.h>
 #include <cstddef>

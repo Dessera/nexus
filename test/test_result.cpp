@@ -1,5 +1,5 @@
 #include "nexus/error.hpp"
-#include "nexus/utils/result.hpp"
+#include "nexus/result.hpp"
 
 #include <gtest/gtest.h>
 #include <string_view>

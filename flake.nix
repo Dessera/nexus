@@ -43,6 +43,7 @@
                     doxygen
 
                     gtest
+                    gdb
                   ])
                   ++ [
                     clang-tools

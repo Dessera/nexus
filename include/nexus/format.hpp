@@ -12,7 +12,7 @@
 #pragma once
 
 #include "nexus/common.hpp"
-#include "nexus/utils/format/ansi.hpp"
+#include "nexus/format/ansi.hpp"
 
 #include <cstdio>
 #include <format>
