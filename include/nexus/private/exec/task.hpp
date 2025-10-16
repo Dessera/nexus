@@ -38,7 +38,7 @@ class TaskBinder {
     using ArgsTuple = std::tuple<Args...>;
 
   private:
-    F         _func;
+    F _func;
     ArgsTuple _args;
 
   public:

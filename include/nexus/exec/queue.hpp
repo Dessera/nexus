@@ -47,9 +47,9 @@ class NEXUS_EXPORT TaskQueue {
 
     InnerPtr _inner;
 
-    std::mutex              _lock;
+    std::mutex _lock;
     std::condition_variable _cond;
-    std::atomic_size_t      _size{0};
+    std::atomic_size_t _size{0};
 
   public:
     TaskQueue(TaskPolicy policy) : _inner(POLICY_CREATOR.at(policy)()) {}

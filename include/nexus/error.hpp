@@ -26,7 +26,7 @@ class NEXUS_EXPORT Error {
 
   private:
     std::string _msg;
-    Code        _code;
+    Code _code;
 
   public:
     constexpr Error(Code code, std::string &&msg)

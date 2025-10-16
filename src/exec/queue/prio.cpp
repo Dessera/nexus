@@ -33,7 +33,7 @@ class PRIO_TaskQueueInner : public TaskQueueInner {
      * only to index the list.
      *
      */
-    std::list<Task<>>               _tasks;
+    std::list<Task<>> _tasks;
     std::priority_queue<TaskHandle> _queue;
 
   public:

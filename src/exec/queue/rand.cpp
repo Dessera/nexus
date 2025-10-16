@@ -36,11 +36,11 @@ class RAND_TaskQueueInner : public TaskQueueInner {
      * only to index the list.
      *
      */
-    std::list<Task<>>               _tasks;
+    std::list<Task<>> _tasks;
     std::priority_queue<TaskHandle> _queue;
 
-    std::random_device                    _rnd;
-    std::mt19937                          _rnd_gen{_rnd()};
+    std::random_device _rnd;
+    std::mt19937 _rnd_gen{_rnd()};
     std::uniform_int_distribution<int8_t> _rnd_dist;
 
   public:

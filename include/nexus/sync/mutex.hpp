@@ -32,7 +32,7 @@ class Mutex {
     class Guard {
       private:
         ObjectType *_obj;
-        GuardType   _guard;
+        GuardType _guard;
 
       public:
         template <typename... Args>
@@ -75,7 +75,7 @@ class Mutex {
 
   private:
     ObjectType _obj;
-    LockType   _lock{};
+    LockType _lock{};
 
   public:
     template <typename... Args>

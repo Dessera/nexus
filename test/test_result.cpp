@@ -10,7 +10,7 @@ using nexus::Result;
 
 TEST(Result, Iterator) {
     Result<int, const char *> res = Ok(1);
-    int                       flag = 0;
+    int flag = 0;
     for ([[maybe_unused]] auto &value : res) {
         ++flag;
     }
@@ -68,7 +68,7 @@ TEST(Result, Flattern) {
 
 TEST(Result, Inspect) {
     Result<int, const char *> res = Ok(1);
-    int                       flag = 0;
+    int flag = 0;
     res = res.inspect([&](const int & /*value*/) { ++flag; })
               .inspect_err([&](const auto & /*err*/) { ++flag; });
     EXPECT_EQ(flag, 1);

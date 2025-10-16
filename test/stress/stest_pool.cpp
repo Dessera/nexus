@@ -22,7 +22,7 @@ enum class TaskType : uint8_t { Sleep, TinyLoop, MidLoop, LargeLoop };
 
 struct TestArgs {
     BuilderType builder;
-    TaskType    task_type;
+    TaskType task_type;
     std::size_t task_cnt;
     std::size_t thread_cnt;
 };
@@ -37,7 +37,7 @@ auto sleep_tester() -> std::size_t {
 
 auto loop_tester_1d4c0() {
     constexpr static std::size_t MAX_LOOPS = 120000;
-    volatile std::size_t         num = 0;
+    volatile std::size_t num = 0;
     for (std::size_t i = 0; i < MAX_LOOPS; ++i) {
         num = 0;
     }
@@ -46,7 +46,7 @@ auto loop_tester_1d4c0() {
 
 auto loop_tester_124f80() {
     constexpr static std::size_t MAX_LOOPS = 1200000;
-    volatile std::size_t         num = 0;
+    volatile std::size_t num = 0;
     for (std::size_t i = 0; i < MAX_LOOPS; ++i) {
         num = 0;
     }
@@ -55,7 +55,7 @@ auto loop_tester_124f80() {
 
 auto loop_tester_b71b00() {
     constexpr static std::size_t MAX_LOOPS = 12000000;
-    volatile std::size_t         num = 0;
+    volatile std::size_t num = 0;
     for (std::size_t i = 0; i < MAX_LOOPS; ++i) {
         num = 0;
     }
@@ -149,21 +149,31 @@ auto get_builder(BuilderType type) {
     namespace builder = nexus::exec::thread_builder;
 
     switch (type) {
-    case BuilderType::Common:   return builder::common();
-    case BuilderType::CpuBound: return builder::cpu_bound();
-    case BuilderType::IOBound:  return builder::io_bound();
-    case BuilderType::Time:     return builder::time_bound();
-    default:                    return builder::blank();
+    case BuilderType::Common:
+        return builder::common();
+    case BuilderType::CpuBound:
+        return builder::cpu_bound();
+    case BuilderType::IOBound:
+        return builder::io_bound();
+    case BuilderType::Time:
+        return builder::time_bound();
+    default:
+        return builder::blank();
     }
 }
 
 auto get_tester(TaskType type) {
     switch (type) {
-    case TaskType::Sleep:     return sleep_tester;
-    case TaskType::TinyLoop:  return loop_tester_1d4c0;
-    case TaskType::MidLoop:   return loop_tester_124f80;
-    case TaskType::LargeLoop: return loop_tester_b71b00;
-    default:                  return null_tester;
+    case TaskType::Sleep:
+        return sleep_tester;
+    case TaskType::TinyLoop:
+        return loop_tester_1d4c0;
+    case TaskType::MidLoop:
+        return loop_tester_124f80;
+    case TaskType::LargeLoop:
+        return loop_tester_b71b00;
+    default:
+        return null_tester;
     }
 }
 

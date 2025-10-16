@@ -35,9 +35,9 @@ template <typename R = std::any> class Task {
     constexpr static std::int8_t DEFAULT_PRIO = 0;
 
   private:
-    DynFunction          _func;
+    DynFunction _func;
     std::promise<Result> _res;
-    std::int8_t          _prio{DEFAULT_PRIO};
+    std::int8_t _prio{DEFAULT_PRIO};
 
   public:
     /**

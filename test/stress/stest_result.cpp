@@ -39,7 +39,9 @@ auto main(int argc, char **argv) -> int { // NOLINT
     int opt = -1;
     while ((opt = getopt(argc, argv, "l::")) != -1) {
         switch (opt) {
-        case 'l': try { loop_cnt = std::stoull(optarg);
+        case 'l':
+            try {
+                loop_cnt = std::stoull(optarg);
             } catch (...) {
                 nexus::println(stderr,
                                "Warning: Invalid loop count, use default");
@@ -54,7 +56,7 @@ auto main(int argc, char **argv) -> int { // NOLINT
 
     auto [ecode_time] = nexus::time::record([&]() {
         for (std::size_t i = 0; i < loop_cnt; ++i) {
-            ValueType                           value = 0;
+            ValueType value = 0;
             [[maybe_unused]] volatile ErrorType res = ecode_gen(value);
             if (res != 0) {
                 value = 1;
@@ -69,7 +71,7 @@ auto main(int argc, char **argv) -> int { // NOLINT
     auto [evar_time] = nexus::time::record([&]() {
         for (std::size_t i = 0; i < loop_cnt; ++i) {
             [[maybe_unused]] volatile ValueType value = 0;
-            auto                                res = evar_gen();
+            auto res = evar_gen();
             if (auto *pvalue = std::get_if<ValueType>(&res);
                 pvalue != nullptr) {
                 value = *pvalue;

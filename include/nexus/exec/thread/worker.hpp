@@ -48,8 +48,8 @@ class NEXUS_EXPORT ThreadWorker {
      *
      */
     struct Inner {
-        std::atomic<Status>     status{Status::Create};
-        std::mutex              lock;
+        std::atomic<Status> status{Status::Create};
+        std::mutex lock;
         std::condition_variable cancel_notify;
     };
 
@@ -60,9 +60,9 @@ class NEXUS_EXPORT ThreadWorker {
     using InnerPtr = std::shared_ptr<Inner>;
 
   private:
-    QueuePtr  _queue;
+    QueuePtr _queue;
     ThreadPtr _worker{nullptr};
-    InnerPtr  _inner{std::make_shared<Inner>()};
+    InnerPtr _inner{std::make_shared<Inner>()};
 
   public:
     ThreadWorker(QueuePtr &&queue) : _queue(std::move(queue)) {}

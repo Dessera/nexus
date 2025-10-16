@@ -78,7 +78,7 @@ enum TextStyle : uint8_t {
  */
 template <typename T> class ANSI {
   private:
-    const T  *_inner;
+    const T *_inner;
     TextStyle _style;
 
   public:

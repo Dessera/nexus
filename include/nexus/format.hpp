@@ -40,7 +40,7 @@ template <typename T, typename CharT = char>
 /// print("{}", ansi(42, format::BGRed));   // \033[41m42\033[0m
 /// ```
 template <typename T>
-[[nodiscard, nexus_inline]] constexpr auto ansi(const T          &value,
+[[nodiscard, nexus_inline]] constexpr auto ansi(const T &value,
                                                 format::TextStyle style)
     -> format::ANSI<T> {
     return format::ANSI(value, style);

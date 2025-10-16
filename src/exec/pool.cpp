@@ -105,7 +105,7 @@ auto ThreadPool::_cancel_workers(std::size_t need) -> std::size_t {
 }
 
 auto ThreadPool::_clean_cancelled_workers() -> std::size_t {
-    auto        cit = _cancelled_workers.begin();
+    auto cit = _cancelled_workers.begin();
     std::size_t clean_cnt = 0;
 
     while (cit != _cancelled_workers.end()) {

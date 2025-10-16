@@ -54,7 +54,7 @@ class NEXUS_EXPORT ThreadPool {
      *
      */
     struct Config {
-        TaskPolicy  policy;       /**< Queue policy. */
+        TaskPolicy policy;        /**< Queue policy. */
         std::size_t max_workers;  /**< Max workers (threads). */
         std::size_t min_workers;  /**< Min workers (threads). */
         std::size_t init_workers; /**< Init workers (threads). */
@@ -101,9 +101,9 @@ class NEXUS_EXPORT ThreadPool {
   private:
     Config _cfg;
 
-    QueuePtr                 _queue;
+    QueuePtr _queue;
     std::deque<ThreadWorker> _workers;
-    std::list<ThreadWorker>  _cancelled_workers;
+    std::list<ThreadWorker> _cancelled_workers;
 
     std::mutex _lock;
 
