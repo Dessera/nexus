@@ -1,4 +1,5 @@
-/// Nexus time utilities.
+/// @file time.hpp
+/// @brief Nexus time utilities.
 ///
 /// This module aims to extend `std::chrono` for convenience.
 
@@ -11,7 +12,7 @@
 
 namespace nexus::time {
 
-/// Record the execute duration of a function.
+/// @brief Record the execute duration of a function.
 ///
 /// If a function has return value, then `record` will return it as the second
 /// element of tuple.

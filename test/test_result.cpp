@@ -6,7 +6,6 @@
 
 namespace {
 
-using nexus::Error;
 using nexus::Result;
 
 TEST(Result, Iterator) {
@@ -105,10 +104,11 @@ TEST(Result, Expect) {
 
     res = Ok(1);
     EXPECT_THROW([[maybe_unused]] auto value = res.expect_err("Unexpected"),
-                 Error);
+                 nexus::ThrowableError);
 
     res = Err("Unexpected");
-    EXPECT_THROW([[maybe_unused]] auto value = res.expect("Unexpected"), Error);
+    EXPECT_THROW([[maybe_unused]] auto value = res.expect("Unexpected"),
+                 nexus::ThrowableError);
 
     res = Err("Unexpected");
     EXPECT_NO_THROW([[maybe_unused]] auto value = res.expect_err("Unexpected"));
@@ -119,13 +119,15 @@ TEST(Result, Unwrap) {
     EXPECT_EQ(res.unwrap(), 1);
 
     res = Ok(1);
-    EXPECT_THROW([[maybe_unused]] auto value = res.unwrap_err(), Error);
+    EXPECT_THROW([[maybe_unused]] auto value = res.unwrap_err(),
+                 nexus::ThrowableError);
 
     res = Err("Unexpected");
     EXPECT_EQ(std::string_view(res.unwrap_err()), "Unexpected");
 
     res = Err("Unexpected");
-    EXPECT_THROW([[maybe_unused]] auto value = res.unwrap(), Error);
+    EXPECT_THROW([[maybe_unused]] auto value = res.unwrap(),
+                 nexus::ThrowableError);
 
     res = Ok(1);
     EXPECT_EQ(res.unwrap_or(2), 1);

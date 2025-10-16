@@ -7,7 +7,7 @@
 Use `nexus::print` or `nexus::println` to print format messages:
 
 ```cpp
-#include <nexus/utils/format.hpp>
+#include <nexus/format.hpp>
 
 // To stdout
 nexus::print("{}", 42);     // 42

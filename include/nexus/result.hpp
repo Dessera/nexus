@@ -1,5 +1,5 @@
 /// @file result.hpp
-/// Rust-like result type.
+/// @brief Rust-like result type.
 ///
 /// This `Result` type is implemented by `std::variant`, which may be slower
 /// than `std::variant` or `std::optional`.
@@ -32,7 +32,7 @@ concept IsResult = requires {
     typename T::VariantType;
 };
 
-/// Result value wrapper.
+/// @brief Result value wrapper.
 ///
 /// `Ok` is a helper type for the construction of `Result`.
 ///
@@ -69,7 +69,7 @@ template <typename T> class Ok {
 
 template <typename T> Ok(T value) -> Ok<T>;
 
-/// Result error wrapper.
+/// @brief Result error wrapper.
 ///
 /// `Err` is a helper type for the construction of `Result`.
 ///
@@ -106,7 +106,7 @@ template <typename E> class Err {
 
 template <typename E> Err(E err) -> Err<E>;
 
-/// Rust-like result type.
+/// @brief Rust-like result type.
 ///
 /// This type is implemented by `std::variant` and do not thread safe.
 template <typename T, typename E>
@@ -116,7 +116,7 @@ class Result : public std::variant<Ok<T>, Err<E>> {
     using ErrorType = Err<E>::ErrorType;
     using VariantType = std::variant<Ok<T>, Err<E>>;
 
-    /// Result value iterator.
+    /// @brief Result value iterator.
     ///
     /// The iterator will yield if the result is not error, otherwise nothing.
     class Iterator {
@@ -159,7 +159,7 @@ class Result : public std::variant<Ok<T>, Err<E>> {
         }
     };
 
-    /// Result error iterator.
+    /// @brief Result error iterator.
     ///
     /// The iterator will yield if the result is error, otherwise nothing.
     class ErrorIterator {
@@ -263,8 +263,16 @@ class Result : public std::variant<Ok<T>, Err<E>> {
         return ErrorEnumerator(*this);
     }
 
-    /// Return new result if current result is not an error, otherwise return
-    /// current error.
+    /// @brief Return new result if current result is not an error, otherwise
+    /// return current error.
+    ///
+    /// ## Example:
+    ///
+    /// ```cpp
+    /// Result<int, const char *> res1 = Ok(1);
+    /// Result<int, const char *> res2 = Ok(2);
+    /// assert(res1.both(std::move(res2)).unwrap() == 2);
+    /// ```
     template <typename Tn>
     [[nodiscard]] constexpr auto both(Result<Tn, E> &&res) -> Result<Tn, E> {
         if (auto *perr = std::get_if<Err<ErrorType>>(&_base());
@@ -276,6 +284,15 @@ class Result : public std::variant<Ok<T>, Err<E>> {
 
     /// Return conv result if current result is not an error, otherwise return
     /// current error.
+    ///
+    /// ## Example:
+    ///
+    /// ```cpp
+    /// Result<int, const char *> res1 = Ok(1);
+    /// Result<int, const char *> res2 = res1.both_and(
+    ///     [](auto &&) -> Result<int, const char *> { return Ok(2); });
+    /// assert(res2.unwrap() == 2);
+    /// ```
     template <typename F, typename Ret = std::invoke_result_t<F, ValueType>>
     [[nodiscard]] constexpr auto both_and(F &&conv) -> Ret
         requires(IsResult<Ret>)
@@ -296,8 +313,16 @@ class Result : public std::variant<Ok<T>, Err<E>> {
             _base());
     }
 
-    /// Return new result if current result is an error, otherwise return
+    /// @brief Return new result if current result is an error, otherwise return
     /// current value.
+    ///
+    /// ## Example:
+    ///
+    /// ```cpp
+    /// Result<int, const char *> res1 = Ok(1);
+    /// Result<int, const char *> res2 = Ok(2);
+    /// assert(res1.either(std::move(res2)).unwrap() == 1);
+    /// ```
     template <typename En>
     [[nodiscard]] constexpr auto either(Result<T, En> &&res) -> Result<T, En> {
         if (auto *pvalue = std::get_if<Ok<ValueType>>(&_base());
@@ -307,8 +332,17 @@ class Result : public std::variant<Ok<T>, Err<E>> {
         return std::move(res);
     }
 
-    /// Return conv result if result is an error, otherwise return current
-    /// value.
+    /// @brief Return conv result if result is an error, otherwise return
+    /// current value.
+    ///
+    /// ## Example:
+    ///
+    /// ```cpp
+    /// Result<int, const char *> res1 = Ok(1);
+    /// Result<int, const char *> res2 = res1.either_or(
+    ///     [](auto &&) -> Result<int, const char *> { return Ok(2); });
+    /// assert(res2.unwrap() == 1);
+    /// ```
     template <typename F, typename Ret = std::invoke_result_t<F, ErrorType>>
     [[nodiscard]] constexpr auto either_or(F &&conv) -> Ret
         requires(IsResult<Ret>)
@@ -329,7 +363,15 @@ class Result : public std::variant<Ok<T>, Err<E>> {
             _base());
     }
 
-    /// Convert Result<Result<T, E>, E> to Result<T, E>.
+    /// @brief Convert Result<Result<T, E>, E> to Result<T, E>.
+    ///
+    /// ## Example:
+    ///
+    /// ```cpp
+    /// Result<Result<int, const char *>, const char *> res =
+    ///     Ok(Result<int, const char *>(Ok(1)));
+    /// assert(res.flattern().unwrap() == 1);
+    /// ```
     template <typename Ret = ValueType, typename Tn = Ret::ValueType,
               typename En = Ret::ErrorType>
     [[nodiscard]] constexpr auto flattern() -> Ret
@@ -351,7 +393,15 @@ class Result : public std::variant<Ok<T>, Err<E>> {
             _base());
     }
 
-    /// Inspect value in result.
+    /// @brief Inspect value in result.
+    ///
+    /// ## Example:
+    ///
+    /// ```cpp
+    /// Result<int, const char *> res = Ok(1);
+    /// res =
+    ///     res.inspect([&](const int &value) { nexus::println("{}", value); });
+    /// ```
     [[nodiscard]] constexpr auto inspect(auto &&func) -> Result {
         if (auto *pvalue = std::get_if<Ok<ValueType>>(&_base());
             pvalue != nullptr) {
@@ -361,7 +411,15 @@ class Result : public std::variant<Ok<T>, Err<E>> {
         return std::move(*this);
     }
 
-    /// Inspect error in result.
+    /// @brief Inspect error in result.
+    ///
+    /// ## Example:
+    ///
+    /// ```cpp
+    /// Result<int, const char *> res = Err("Unexpected");
+    /// res = res.inspect_err(
+    ///     [&](const auto &err) { nexus::println("{}", err); });
+    /// ```
     [[nodiscard]] constexpr auto inspect_err(auto &&func) -> Result {
         if (auto *perr = std::get_if<Err<ErrorType>>(&_base());
             perr != nullptr) {
@@ -414,7 +472,7 @@ class Result : public std::variant<Ok<T>, Err<E>> {
             return std::move(pvalue->value());
         }
 
-        throw Error(Error::Unwrap, std::move(msg));
+        throw Error(Error::Unwrap, std::move(msg)).to_std();
     }
 
     /// Get the value, throw specific message if there is an error.
@@ -437,7 +495,7 @@ class Result : public std::variant<Ok<T>, Err<E>> {
             return std::move(perr->error());
         }
 
-        throw Error(Error::Unwrap, std::move(msg));
+        throw Error(Error::Unwrap, std::move(msg)).to_std();
     }
 
     /// Get the error, throw specific message if there is no error.
@@ -472,7 +530,8 @@ class Result : public std::variant<Ok<T>, Err<E>> {
 
                 if constexpr (IsErr<VarType>) {
                     throw Error(Error::Unwrap, "Result is an error ({})",
-                                to_formattable(result.error()));
+                                to_formattable(result.error()))
+                        .to_std();
                 } else if constexpr (IsOk<VarType>) {
                     return result.value();
                 } else {
@@ -549,7 +608,8 @@ class Result : public std::variant<Ok<T>, Err<E>> {
                     return result.error();
                 } else if constexpr (IsOk<VarType>) {
                     throw Error(Error::Unwrap, "Result is not an error ({})",
-                                to_formattable(result.value()));
+                                to_formattable(result.value()))
+                        .to_std();
                 } else {
                     static_assert(false,
                                   "Result has an unexpected variant type");

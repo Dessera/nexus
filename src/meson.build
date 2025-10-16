@@ -1,6 +1,6 @@
 lib_src = files(
-    'error.cpp',
-    'nexus.cpp',
+  'error.cpp',
+  'nexus.cpp',
 )
 
 subdir('exec')
